@@ -53,13 +53,13 @@ CATEGORY_GLOSS: dict[str, str] = {
     "library": "a library, quiet reading and books",
     "bookshop": "an independent bookshop, browsing books",
     "theatre_cinema": "a theatre or cinema, performance and film",
-    "cafe": "a cosy cafe for coffee and a pause",
-    "bakery_food_shop": "a bakery, patisserie, chocolate or fine-food shop",
+    "cafe": "a cosy cafe or specialty coffee shop, espresso and a pause",
+    "bakery_food_shop": "a bakery, patisserie, coffee roaster, chocolate or fine-food shop",
     "restaurant": "a restaurant for a proper meal",
     "bar_pub": "a lively bar, pub or wine bar, drinks and atmosphere",
     "market": "a bustling open-air or covered market, food and stalls",
     "specialty_shop": "a characterful specialty shop — antiques, art, design",
-    "attraction": "a notable tourist attraction or point of interest",
+    "attraction": "a famous landmark or major sight worth seeing",
 }
 
 

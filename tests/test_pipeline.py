@@ -45,7 +45,10 @@ def test_discovery_respects_budget_and_detours():
 
 @data_ready
 def test_out_of_bounds_clean_error():
-    r = plan_route("London", DEST, budget=0.5)
+    # Explicit London coordinates: deterministically outside the Paris bbox.
+    # (A *name* like "London" may legitimately resolve to a Paris venue with
+    # that name via the offline POI-name geocoder.)
+    r = plan_route("51.5074, -0.1278", DEST, budget=0.5)
     assert r.error is not None
     assert r.discovery is None and r.plain is None
 

@@ -13,7 +13,9 @@ folium==0.20.0
 # UI
 gradio==6.17.3
 
-# Vibe interpretation (Brick 4)
+# Vibe interpretation (Brick 4) — fastembed (ONNX, no torch) is the primary
+# backend; sentence-transformers remains as fallback.
+fastembed>=0.4
 sentence-transformers==5.5.1
 
 # Narration LLM (Brick 6) — Qwen3.5-9B on ZeroGPU

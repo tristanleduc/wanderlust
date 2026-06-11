@@ -35,8 +35,11 @@ class POI:
     quietness: float
     confidence: float
     n_tags: int
+    opening_hours: str | None = None
     # filled by the scorer (Brick 2):
     score: float = 0.0
+    # filled by hours.apply_open_now: True / False / None (unknown)
+    open_state: bool | None = None
 
 
 def _to_metres(lat, lon):
@@ -111,6 +114,8 @@ def corridor_pois(
             quietness=float(r.quietness),
             confidence=float(r.confidence),
             n_tags=int(r.n_tags),
+            opening_hours=(None if pd.isna(getattr(r, "opening_hours", None))
+                           else str(r.opening_hours)),
         )
         for r in sel.itertuples(index=False)
     ]

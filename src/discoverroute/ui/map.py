@@ -11,12 +11,31 @@ from branca.element import Element
 
 from discoverroute import config
 from discoverroute.routing.graph import Route
-from discoverroute.ui import design
+from discoverroute.ui import design, markers
 
 PLAIN_COLOR = "#2F5DF4"      # cobalt — the plain/fastest route
 DISCOVERY_COLOR = "#2FA463"  # grass — the discovery route
-POI_COLOR = "#FF6A52"        # coral — POI markers
-TILES = "cartodbpositron"
+
+# Warmer, livelier basemap than the pale Positron — CARTO Voyager (keyless).
+_TILE_URL = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+_TILE_ATTR = ('&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> '
+              'contributors &copy; <a href="https://carto.com/attributions">CARTO</a>')
+
+# POI marker color by category family (design palette).
+_CATEGORY_COLORS = {
+    # nature & calm — grass
+    "park_garden": "#2FA463", "water_feature": "#2FA463", "viewpoint": "#2FA463",
+    # culture & history — cobalt
+    "monument_historic": "#2F5DF4", "museum_gallery": "#2F5DF4",
+    "place_of_worship": "#2F5DF4", "library": "#2F5DF4", "theatre_cinema": "#2F5DF4",
+    "attraction": "#2F5DF4",
+    # food & drink — sun
+    "cafe": "#E89E1C", "bakery_food_shop": "#E89E1C", "restaurant": "#E89E1C",
+    "bar_pub": "#E89E1C", "market": "#E89E1C",
+    # art & finds — coral
+    "artwork": "#FF6A52", "bookshop": "#FF6A52", "specialty_shop": "#FF6A52",
+}
+_DEFAULT_POI_COLOR = "#FF6A52"
 
 _LEGEND_HTML = """
 <div style="position:absolute; bottom:18px; left:12px; z-index:9999;
@@ -28,8 +47,23 @@ _LEGEND_HTML = """
   <span style="display:inline-block;width:18px;height:4px;border-radius:2px;
         background:#2F5DF4;vertical-align:middle;margin-right:7px;"></span>Fastest route<br>
   <span style="display:inline-block;width:10px;height:10px;border-radius:50%;
-        background:#FF6A52;vertical-align:middle;margin-right:7px;margin-left:4px;"></span>Worth a detour
+        background:#2FA463;vertical-align:middle;margin-right:7px;margin-left:4px;"></span>Green space
+  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;
+        background:#2F5DF4;vertical-align:middle;margin-right:7px;margin-left:10px;"></span>Water &amp; wayfinding<br>
+  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;
+        background:#FF6A52;vertical-align:middle;margin-right:7px;margin-left:4px;"></span>Culture
+  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;
+        background:#E89E1C;vertical-align:middle;margin-right:7px;margin-left:10px;"></span>Cozy stops
 </div>
+"""
+
+# Gentle warm grade on the tiles so the basemap sits inside the cream design
+# instead of fighting it (applies inside the folium iframe).
+_TILE_WARMTH_CSS = """
+<style>
+.leaflet-tile-pane{ filter: saturate(1.12) sepia(0.10) brightness(1.02); }
+.leaflet-container{ background:#F6ECD9; }
+</style>
 """
 
 
@@ -50,7 +84,8 @@ def render_routes(
 ) -> str:
     """Render routes + markers and return the map as standalone HTML."""
     center = start or config.PARIS_CENTER
-    fmap = folium.Map(location=list(center), zoom_start=14, tiles=TILES)
+    fmap = folium.Map(location=list(center), zoom_start=14,
+                      tiles=_TILE_URL, attr=_TILE_ATTR)
 
     all_coords: list[tuple[float, float]] = []
 
@@ -75,38 +110,45 @@ def render_routes(
         all_coords.extend(discovery.coords)
 
     if pois:
-        for poi in pois:
+        for i, poi in enumerate(pois):
             name = getattr(poi, "name", None) or getattr(poi, "category", "POI")
-            folium.CircleMarker(
-                location=[poi.lat, poi.lon],
-                radius=7,
-                color="#FFFCF5",
-                weight=2,
-                fill=True,
-                fill_color=POI_COLOR,
-                fill_opacity=1.0,
-                class_name="dr-poi",
-                tooltip=str(name),
-            ).add_to(fmap)
+            cat = getattr(poi, "category", "")
+            icon = markers.poi_icon(cat, index=i)
+            tooltip = f"{name} · {cat.replace('_', ' ')}" if cat else str(name)
+            if icon is not None:
+                folium.Marker([poi.lat, poi.lon], icon=icon,
+                              tooltip=tooltip).add_to(fmap)
+            else:  # icon file missing — fall back to a colored dot
+                folium.CircleMarker(
+                    location=[poi.lat, poi.lon], radius=7, color="#FFFCF5",
+                    weight=2, fill=True, fill_opacity=1.0,
+                    fill_color=_CATEGORY_COLORS.get(cat, _DEFAULT_POI_COLOR),
+                    class_name="dr-poi", tooltip=tooltip,
+                ).add_to(fmap)
 
     if start is not None:
+        icon = markers.endpoint_icon("start")
         folium.Marker(list(start), tooltip="Start",
-                      icon=folium.Icon(color="blue", icon="play")).add_to(fmap)
+                      icon=icon or folium.Icon(color="blue", icon="play")).add_to(fmap)
     if end is not None:
+        icon = markers.endpoint_icon("dest")
         folium.Marker(list(end), tooltip="Destination",
-                      icon=folium.Icon(color="red", icon="flag")).add_to(fmap)
+                      icon=icon or folium.Icon(color="red", icon="flag")).add_to(fmap)
 
     _fit_bounds(fmap, all_coords or [c for c in (start, end) if c])
 
     root = fmap.get_root()
     root.html.add_child(Element(_LEGEND_HTML))
+    root.html.add_child(Element(_TILE_WARMTH_CSS))
+    root.html.add_child(Element(markers.MARKER_CSS))
     root.html.add_child(Element(design.MAP_ANIMATION_JS))
     return fmap._repr_html_()
 
 
 def empty_map(message: str = design.EMPTY_STATE_LABEL) -> str:
     """A blank Paris map with a friendly sticker overlay (empty/error state)."""
-    fmap = folium.Map(location=list(config.PARIS_CENTER), zoom_start=12, tiles=TILES)
+    fmap = folium.Map(location=list(config.PARIS_CENTER), zoom_start=12,
+                      tiles=_TILE_URL, attr=_TILE_ATTR)
     overlay = f"""
     <div style="position:absolute; inset:0; z-index:9999; display:grid; place-items:center;
          pointer-events:none; background:rgba(246,236,217,.45);">
@@ -127,5 +169,6 @@ def empty_map(message: str = design.EMPTY_STATE_LABEL) -> str:
       </div>
     </div>
     """
+    fmap.get_root().html.add_child(Element(_TILE_WARMTH_CSS))
     fmap.get_root().html.add_child(Element(overlay))
     return fmap._repr_html_()

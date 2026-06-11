@@ -60,10 +60,14 @@ DR_CSS = """
   box-shadow:0 18px 44px -20px rgba(43,38,32,.32) !important; background:var(--dr-paper) !important;
 }
 
-/* inputs */
+/* inputs — explicit ink color (theme override otherwise leaves them too pale) */
 .gradio-container input[type=text], .gradio-container textarea{
   border:2px solid var(--dr-line) !important; border-radius:var(--dr-r) !important;
-  background:#FFFEFB !important; transition:border-color .18s, box-shadow .18s !important;
+  background:#FFFEFB !important; color:var(--dr-ink) !important;
+  transition:border-color .18s, box-shadow .18s !important;
+}
+.gradio-container input[type=text]::placeholder, .gradio-container textarea::placeholder{
+  color:#B9AE99 !important; opacity:1;
 }
 .gradio-container input[type=text]:focus, .gradio-container textarea:focus{
   border-color:var(--dr-cobalt) !important; box-shadow:0 0 0 4px rgba(47,93,244,.14) !important;
@@ -84,8 +88,10 @@ DR_CSS = """
 /* mode toggle as a segmented control */
 #dr-mode .wrap{ background:#F0E3CC; padding:5px; border-radius:var(--dr-r); gap:6px; }
 #dr-mode label{ flex:1; justify-content:center; border:none !important;
+  background:transparent !important; color:var(--dr-soft) !important;
   border-radius:13px !important; transition:all .2s var(--dr-spring); }
-#dr-mode label.selected{ background:var(--dr-paper); color:var(--dr-cobalt) !important;
+#dr-mode label span{ color:inherit !important; }
+#dr-mode label.selected{ background:var(--dr-paper) !important; color:var(--dr-cobalt) !important;
   box-shadow:0 4px 12px -4px rgba(43,38,32,.25); transform:translateY(-1px); }
 
 /* springy sliders — per-slider accents (budget coral · adventurousness sun ·
@@ -102,14 +108,18 @@ DR_CSS = """
 #dr-adv input[type=range]::-webkit-slider-thumb{ border-color:var(--dr-sun); }
 #dr-green input[type=range], #dr-quiet input[type=range]{ accent-color:var(--dr-grass); }
 
-/* collapsibles -> dashed taste cards */
+/* collapsibles -> dashed taste cards (labels at full ink for readability) */
 .dr-collapse{ border:1.5px dashed var(--dr-line) !important; border-radius:var(--dr-r) !important;
   background:#FFFDF8 !important; box-shadow:none !important; }
+.dr-collapse .label-wrap span, .dr-collapse button span, .dr-collapse > button{
+  color:var(--dr-ink) !important; opacity:1 !important; }
 
-/* route-options radio -> selectable cards */
+/* route-options radio -> selectable cards (paper bg + ink text, both states) */
 #dr-options .wrap{ display:grid; grid-template-columns:repeat(3,1fr); gap:11px; }
 #dr-options label{ border:2px solid var(--dr-line) !important; border-radius:var(--dr-r) !important;
-  padding:14px !important; transition:all .2s var(--dr-spring); }
+  padding:14px !important; background:var(--dr-paper) !important; color:var(--dr-ink) !important;
+  transition:all .2s var(--dr-spring); }
+#dr-options label span, #dr-options label *{ color:var(--dr-ink) !important; }
 #dr-options label:hover{ transform:translateY(-3px); }
 #dr-options label.selected{ border-color:var(--dr-grass) !important; background:#F1FAF4 !important;
   box-shadow:0 10px 26px -14px rgba(47,164,99,.6) !important; }
@@ -118,7 +128,7 @@ DR_CSS = """
 #dr-map{ border-radius:26px !important; overflow:hidden; border:1px solid var(--dr-line);
   box-shadow:0 18px 44px -20px rgba(43,38,32,.34); position:relative; background:var(--dr-paper); }
 #dr-map::before{ content:'Paris — live map'; display:block; font-family:'Fredoka',sans-serif;
-  font-weight:600; font-size:13.5px; padding:11px 16px 11px 64px;
+  font-weight:600; font-size:13.5px; padding:11px 16px 11px 64px; color:var(--dr-ink);
   border-bottom:1px solid var(--dr-line);
   background-image:radial-gradient(circle at 20px 50%,#FF6A52 5px,transparent 5px),
     radial-gradient(circle at 36px 50%,#FFC247 5px,transparent 5px),
@@ -174,6 +184,13 @@ footer{ visibility:hidden; }
   #dr-map::before{ font-size:12px; background-image:linear-gradient(180deg,#FFF,#FBF4E6); }
 }
 
+/* dark-mode belt-and-suspenders: even if the dark class sticks, keep the
+   design's ink-on-cream readable (the head script also strips the class) */
+.dark .gradio-container, .dark .gradio-container .prose,
+.dark .gradio-container .prose *, .dark .gradio-container label span,
+.dark .gradio-container p, .dark .gradio-container li{
+  color:var(--dr-ink) !important; }
+
 /* respect reduced motion */
 @media (prefers-reduced-motion:reduce){
   .gradio-container *{ animation:none !important; transition:none !important; } }
@@ -182,40 +199,71 @@ footer{ visibility:hidden; }
 """
 
 # ---------------------------------------------------------------- head (§4)
+# Includes the page enhancer as a real <script> — Gradio 6's launch(js=...)
+# proved unreliable, while head= injection always executes.
 DR_HEAD = """
 <link rel='preconnect' href='https://fonts.googleapis.com'>
 <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>
 <link href='https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap' rel='stylesheet'>
+<script>
+(function(){
+  // The clay design is light-only; Gradio applies a `dark` class from the OS
+  // preference, flipping text vars to near-white on our cream cards. Strip it
+  // and keep it stripped.
+  var forceLight = function(){
+    document.documentElement.classList.remove('dark');
+    if (document.body) document.body.classList.remove('dark');
+  };
+  // Transform-only entrance (no opacity: Gradio morphs the DOM mid-animation
+  // and an interrupted opacity animation would freeze content half-faded).
+  var celebrate = function(el){
+    if(!el || el.dataset.shown) return; el.dataset.shown='1';
+    try{ el.animate([{transform:'translateY(14px)'},{transform:'none'}],
+      {duration:480,easing:'cubic-bezier(.34,1.56,.64,1)'}); }catch(e){}
+  };
+  var arm = function(){
+    forceLight();
+    // Debounced via rAF and childList-only: observing class attributes fires on
+    // every Svelte class toggle (constantly) and can livelock a slow renderer.
+    // Dark-class re-adds are covered by the .dark CSS overrides as backstop.
+    var scheduled = false;
+    var tick = function(){
+      scheduled = false;
+      forceLight();
+      ['#dr-summary','#dr-interp','#dr-itin','#dr-options'].forEach(function(s){
+        var el = document.querySelector(s);
+        if (el && el.textContent.trim()) celebrate(el);
+      });
+    };
+    var obs = new MutationObserver(function(){
+      if (!scheduled){ scheduled = true; requestAnimationFrame(tick); }
+    });
+    obs.observe(document.body, {childList:true, subtree:true});
+  };
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', arm);
+  else arm();
+})();
+</script>
 """
 
 # ---------------------------------------------------------------- js (§4/§6)
 # Outer-page enhancer: bounce results in when they (re)appear. The map's own
 # route-draw / marker-pop animations run INSIDE the folium iframe (ui/map.py
 # injects MAP_ANIMATION_JS there — an iframe can't be reached reliably from here).
-DR_JS = """
-() => {
-  function celebrate(el){
-    if(!el || el.dataset.shown) return; el.dataset.shown='1';
-    el.animate([{opacity:0,transform:'translateY(14px)'},{opacity:1,transform:'none'}],
-      {duration:480,easing:'cubic-bezier(.34,1.56,.64,1)',fill:'forwards'});
-  }
-  const obs = new MutationObserver(()=>{
-    ['#dr-summary','#dr-interp','#dr-itin','#dr-options'].forEach(s=>{
-      const el=document.querySelector(s);
-      if(el && el.textContent.trim()) celebrate(el);
-    });
-  });
-  obs.observe(document.body,{childList:true,subtree:true});
-}
-"""
+# NOTE: the page enhancer (force-light + entrance animation) lives in DR_HEAD as
+# a real <script>; Gradio 6's launch(js=...) silently failed to execute it.
 
-# Map-press bounce the instant Plan is clicked (per-event js).
+# Map-press bounce the instant Plan is clicked (per-event js). NOTE: an event's
+# js function receives the input values and its RETURN VALUE REPLACES them — it
+# must pass the args through unchanged or every input reaches Python as null.
 DR_CELEBRATE = """
-() => {
+(...args) => {
   const map = document.querySelector('#dr-map');
   if (map) map.animate(
     [{transform:'scale(1)'},{transform:'scale(.99)'},{transform:'scale(1)'}],
     {duration:260, easing:'cubic-bezier(.34,1.56,.64,1)'});
+  return args;
 }
 """
 
@@ -336,3 +384,56 @@ NO_DETOUR_HTML = """
 
 # Empty-map overlay message (rendered by ui/map.py inside the map frame).
 EMPTY_STATE_LABEL = "Where shall we wander?"
+
+# ------------------------------------------------------- loading state (§C)
+# Shown in the map slot the instant Plan is clicked (via a .then() chain): a
+# little local mid-stride + bouncing dots, per the kit's loading-state spec.
+LOADING_HTML = """
+<div style="height:520px; display:grid; place-items:center; background:
+     radial-gradient(700px 320px at 50% 0%,#FBEFD6 0%,transparent 70%), #F6ECD9;">
+  <div style="text-align:center;">
+    <svg width="120" height="110" viewBox="0 0 120 110" fill="none" aria-hidden="true"
+         style="animation:drStride .9s ease-in-out infinite alternate;">
+      <ellipse cx="60" cy="98" rx="34" ry="7" fill="#2B2620" opacity=".12"/>
+      <rect x="18" y="88" width="84" height="6" rx="3" fill="#E7DAC0"/>
+      <circle cx="30" cy="91" r="2.5" fill="#FFFCF5"/>
+      <circle cx="60" cy="91" r="2.5" fill="#FFFCF5"/>
+      <circle cx="90" cy="91" r="2.5" fill="#FFFCF5"/>
+      <circle cx="62" cy="28" r="13" fill="#FFC9A3"/>
+      <path d="M50 24 a13 13 0 0 1 24 -3 l-5 2 a 9 9 0 0 0 -14 2z" fill="#8A5A33"/>
+      <rect x="52" y="40" width="20" height="30" rx="9" fill="#2F5DF4"/>
+      <rect x="47" y="44" width="9" height="22" rx="4.5" fill="#2F5DF4"
+            transform="rotate(18 51 55)"/>
+      <rect x="68" y="44" width="9" height="22" rx="4.5" fill="#214AD0"
+            transform="rotate(-26 72 55)"/>
+      <rect x="54" y="66" width="8" height="26" rx="4" fill="#2B2620"
+            transform="rotate(14 58 79)"/>
+      <rect x="62" y="66" width="8" height="26" rx="4" fill="#2B2620"
+            transform="rotate(-22 66 79)"/>
+      <ellipse cx="52" cy="94" rx="7" ry="3.5" fill="#E14D37"/>
+      <ellipse cx="74" cy="90" rx="7" ry="3.5" fill="#E14D37"
+               transform="rotate(-14 74 90)"/>
+      <path d="M88 36 c0,-7 11,-7 11,0 c0,5.5 -5.5,8 -5.5,12.5 c0,-4.5 -5.5,-7 -5.5,-12.5z"
+            fill="#FF6A52"/>
+      <circle cx="93.5" cy="36" r="2.6" fill="#FFFCF5"/>
+    </svg>
+    <div style="font-family:'Fredoka',system-ui,sans-serif; font-weight:600;
+         font-size:19px; color:#2B2620; margin-top:10px;">Scouting your wander…</div>
+    <div style="margin-top:12px; display:flex; gap:8px; justify-content:center;">
+      <span style="width:11px;height:11px;border-radius:50%;background:#FF6A52;
+            animation:drBounce 1s ease-in-out infinite;"></span>
+      <span style="width:11px;height:11px;border-radius:50%;background:#FFC247;
+            animation:drBounce 1s ease-in-out .15s infinite;"></span>
+      <span style="width:11px;height:11px;border-radius:50%;background:#2FA463;
+            animation:drBounce 1s ease-in-out .3s infinite;"></span>
+    </div>
+    <div style="font-family:'DM Sans',system-ui,sans-serif; font-size:13px;
+         color:#6B6256; margin-top:12px;">reading your vibe · scoring 30,000 places · threading the detour</div>
+  </div>
+  <style>
+    @keyframes drBounce { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-9px) } }
+    @keyframes drStride { 0% { transform:translateX(-7px) } 100% { transform:translateX(7px) } }
+    @media (prefers-reduced-motion:reduce){ *{ animation:none !important; } }
+  </style>
+</div>
+"""

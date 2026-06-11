@@ -53,9 +53,11 @@ def _greedy(start, end, pool, budget_s, time_fn, decay, max_pois, by_ratio, gain
     ``max_pois`` is reached. The floor stops the route padding its remaining budget
     with negligible-value detours.
 
-    P1-2: If ``dwell_budget_s`` and ``posture_fn`` are provided, separately tracks
-    dwell time and detour distance, enforcing both constraints independently.
-    Stops consume dwell_budget; passes consume only travel distance.
+    P1-2 (single shared pot): a stop's full cost is added travel time PLUS its
+    dwell time (from ``posture_fn``); a pass-by costs travel only. Everything is
+    enforced against the one ``budget_s`` cap, so the user-facing promise —
+    total trip ≤ (1+budget) × direct — holds whether time is spent walking or
+    lingering. ``dwell_budget_s`` optionally adds a separate dwell-only cap.
     """
     seq: list[Point] = [start, end]
     selected: list = []
@@ -64,40 +66,36 @@ def _greedy(start, end, pool, budget_s, time_fn, decay, max_pois, by_ratio, gain
     cur_detour_dist = 0.0
 
     while len(selected) < max_pois:
-        best = None  # (key, added, idx, poi)
+        best = None  # (key, added, idx, poi, dwell)
         for p in pool:
             if p in selected:
                 continue
             gain = scoring.marginal_gain(selected, p, decay)
             if gain < gain_floor:
                 continue
+            poi_dwell = posture_fn(p) if posture_fn is not None else 0.0
+            if dwell_budget_s is not None and cur_dwell + poi_dwell > dwell_budget_s:
+                continue
             ppt = (p.lat, p.lon)
             for i in range(1, len(seq)):
                 added = (time_fn(seq[i - 1], ppt) + time_fn(ppt, seq[i])
                          - time_fn(seq[i - 1], seq[i]))
-                if cur_time + added > budget_s:
+                cost = added + poi_dwell  # stops pay travel + dwell, passes travel
+                if cur_time + cost > budget_s:
                     continue
-
-                # P1-2: Check dwell budget if available
-                if dwell_budget_s is not None and posture_fn is not None:
-                    poi_dwell = posture_fn(p)
-                    if cur_dwell + poi_dwell > dwell_budget_s:
-                        continue
-
-                key = gain / max(added, _EPS) if by_ratio else gain
-                # tie-break toward the cheaper detour
-                cand = (key, -added)
+                key = gain / max(cost, _EPS) if by_ratio else gain
+                # tie-break toward the cheaper insertion
+                cand = (key, -cost)
                 if best is None or cand > best[0]:
-                    best = (cand, added, i, p)
+                    best = (cand, added, i, p, poi_dwell)
         if best is None:
             break
-        _, added, idx, poi = best
+        _, added, idx, poi, poi_dwell = best
         seq.insert(idx, (poi.lat, poi.lon))
         selected.insert(idx - 1, poi)
-        cur_time += added
-        if dwell_budget_s is not None and posture_fn is not None:
-            cur_dwell += posture_fn(poi)
-            cur_detour_dist += added
+        cur_time += added + poi_dwell
+        cur_dwell += poi_dwell
+        cur_detour_dist += added
 
     return OrienteeringResult(
         selected, cur_time, scoring.set_reward(selected, decay),

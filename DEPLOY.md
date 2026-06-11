@@ -52,6 +52,27 @@ the Qwen3.5-9B generative narration:
 To force the LLM on/off regardless of hardware, set the Space variable
 `DISCOVERROUTE_USE_LLM` to `1` / `0`.
 
+## Optional: live Google verification of the final stops
+
+Set the Space **secret** `GOOGLE_MAPS_API_KEY` (Google Cloud → APIs → Places API
+(New) enabled, billing on) and each planned route live-verifies its ~8 chosen
+stops: permanently-closed detection, open-right-now, rating. Notes:
+- Hours fields bill at the Enterprise SKU → ~1,000 free lookups/month ≈ 125
+  routes; ~$0.15/route beyond. Only the final stops are queried, never stored
+  (Google ToS), and OSM remains the routing/candidate base.
+- Without the key the app is fully offline: open-now still works from OSM
+  `opening_hours` tags (~31% of POIs carry them).
+
+## Refreshing the data snapshot
+
+Place data is a build-time snapshot. To refresh it (e.g. before a demo):
+```bash
+rm -rf cache/   # drop the Overpass HTTP cache to force a fresh download
+.venv/bin/python -m discoverroute.data.build_graph   # ~3 min
+.venv/bin/python -m discoverroute.data.build_pois    # ~12 min
+```
+OSM edits typically reach Overpass within minutes, so a rebuild is near-live.
+
 ## Notes
 - First boot loads the 90 MB graph (~9 s, one-time); warm requests are ~1 s.
 - If you ever rebuild the data: `python -m discoverroute.data.build_graph` then

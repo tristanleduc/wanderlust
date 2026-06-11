@@ -206,6 +206,67 @@ aesthetic: cream paper, cobalt/grass/coral/sun, Fredoka display type.
 - Assets: inline-SVG placeholders shipped; 6 clay illustrations to
   generate/commission later per the kit's asset checklist (style spec saved).
 
+### Live browser testing pass (2026-06-10/11, via Chrome extension + computer-use)
+Found & fixed — none of these were catchable headlessly:
+1. **Plan click hung forever**: per-event `js=` (DR_CELEBRATE) didn't pass
+   Gradio's input values through → all inputs nulled AND completion chain broken.
+   Fix: `(...args) => {…; return args;}`.
+2. **Dark-mode unreadability**: OS dark mode flips Gradio vars to near-white text
+   on our forced-cream cards. Fix: head-script strips the `dark` class
+   (debounced, childList-only observer — a hot attribute observer livelocked the
+   renderer) + `.dark` CSS var overrides as backstop. Design is light-only.
+3. **First-request freeze (minutes)**: lazy `import torch` (~1 GB dylibs) in the
+   request path. Fix: **switched the embedder to fastembed/ONNX** (same
+   bge-small; warms in ~9 s incl. download, no torch) with sentence-transformers
+   fallback; warmup() also pre-warms the embedder + POIs at boot.
+4. Cosmetics: input text + map-titlebar colors were theme-washed; unselected
+   mode-segment and route-option cards were dark-on-dark; accordion labels faint;
+   `launch(js=…)` silently never executes (moved enhancer into `head=`).
+
+**Programmatic E2E (gradio_client against the live app)**: vibe plan 2.6 s warm
+with 3 labeled options ("+7 min · 8 stops (artwork, park garden)"); contrasting
+vibe → different itinerary, cafe top-ranked; budget 0 → no discovery polyline,
+plain messaging, no-detour state visible; head script + CSS + fonts delivered;
+profile save round-trips. All green.
+
+### Freshness stack (2026-06-11) — open-now + optional Google live-verify
+- **Map face-lift**: CARTO Voyager tiles + warm grade; POI markers colored by
+  category family (grass nature / cobalt culture / sun food / coral art) with a
+  matching legend; autocomplete dropdowns over the local 30k-name index
+  (`geocode.suggest`, key_up); "Scouting your wander…" loading state via a
+  .then() chain.
+- **Open-now from OSM (free, offline)**: `opening_hours` stored at build (9,461
+  POIs, 31%); `routing/hours.py` conservative evaluator (abstains on exotic
+  grammar; PH/SH rules dropped per-rule, not whole-spec); plan-time demotion
+  closed-stop ×0.2 / closed-pass ×0.7; unknown-hours daytime categories ×0.5 at
+  night; 🟢/🔴 badges in the itinerary. Verified live at 23 h: route picks only
+  open bars/cafés.
+- **P1-2 single-pot budgeting fix**: a stop now costs added-travel + dwell
+  against the ONE (1+budget)×direct cap (the old separate 40 % dwell pot made
+  "bar hopping" unable to afford a single 15-min bar). Summary/labels/narration
+  count dwell ("+26 min incl. ~25 min lingering").
+- **Google Places live-verify (optional)**: `enrich/google_places.py` — with
+  GOOGLE_MAPS_API_KEY set, the final stops get businessStatus/openNow/rating at
+  display time (ToS-clean: never stored; ~125 free routes/month, Enterprise SKU).
+  Silent no-op without the key. DEPLOY.md documents key setup + data-refresh.
+- Tests: 12 hours/no-key tests added; suite green (orienteering/pipeline 25/25).
+
+### Vibe quality + clay-pin markers (2026-06-12)
+- **"specialty coffee tour" bug**: the token "tour" lit up the attraction gloss
+  ("notable TOURist attraction") at 1.0, beating cafe — routes went to escape
+  rooms. Gloss surgery: attraction → "a famous landmark or major sight worth
+  seeing"; cafe gloss gains "specialty coffee shop, espresso"; bakery gloss
+  gains "coffee roaster" (OSM shop=coffee lands there). Now cafe 1.0 /
+  bakery .97 / attraction .79, and "famous landmarks tour" still → attraction.
+  18 interpret/profile/narration tests green.
+- **Designed marker family integrated** (user's icons/ handoff): 14 clay-pin
+  SVGs copied to `ui/markers.py` + `ui/icons/`; 17 categories mapped to the 14
+  kinds (color-by-meaning: cobalt water/wayfinding · grass green space · coral
+  culture · sun cozy stops); Leaflet DivIcons with tip-anchored pins, cast
+  shadow, springy hover, staggered pop-in (reduced-motion gated); start/dest
+  clay pins replace stock folium markers; legend re-labeled to the family's
+  color language. Verified live: pins + pop-in CSS + endpoint pins in map HTML.
+
 ---
 
 ## Decisions (made with user, 2026-06-08)

@@ -46,7 +46,8 @@ def _verb(posture: str) -> str:
 def template_narration(plain, discovery, pois, vibe, mode, start_label="",
                        end_label="", posture=None) -> str:
     posture = posture or {}
-    extra = round(discovery.time_min - plain.time_min)
+    extra = round(discovery.time_min + getattr(discovery, "dwell_s", 0.0) / 60.0
+                  - plain.time_min)
     unit = "minute" if extra == 1 else "minutes"
     lead = f"### Why this route\n"
     vibe_clause = f" for a *{vibe.strip()}*" if (vibe or "").strip() else ""
@@ -60,7 +61,17 @@ def template_narration(plain, discovery, pois, vibe, mode, start_label="",
         name = p.name or f"a {p.category.replace('_', ' ')}"
         reason = _REASON.get(p.category, "a stop worth making")
         verb = _verb(posture.get(p.category, "pass"))
-        lines.append(f"{i}. **{name}** — {verb.lower()} for {reason}.")
+        state = getattr(p, "open_state", None)
+        live = getattr(p, "live_status", None)  # Google-verified, when present
+        if live is not None:
+            badge = " · 🟢 open now ✓live" if live else " · 🔴 closed right now ✓live"
+        elif state is True:
+            badge = " · 🟢 open now"
+        elif state is False:
+            badge = " · 🔴 closed right now"
+        else:
+            badge = ""
+        lines.append(f"{i}. **{name}** — {verb.lower()} for {reason}.{badge}")
     lines.append(
         f"\nThen on to {end_label or 'your destination'}. Every place above is a "
         f"real spot on your route — nothing invented."

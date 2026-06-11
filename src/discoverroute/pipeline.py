@@ -109,7 +109,8 @@ def plan_route(
     used_ids: set[int] = set()
     try:
         shortlist, matrix, time_fn = _prepare_discovery(
-            graph, start, end, plain, mode, budget, weights, adventurousness)
+            graph, start, end, plain, mode, budget, weights, adventurousness,
+            posture=posture)
         for _ in range(max(1, n_alternatives)):
             if shortlist is None:
                 break
@@ -119,6 +120,9 @@ def plan_route(
             if discovery is None or not selected:
                 break
             used_ids.update(p.osm_id for p in selected)
+            # Optional live verification of the chosen stops (no-op without key).
+            from discoverroute.enrich import google_places
+            google_places.verify_stops(selected)
             itinerary_md, _ = narrate(
                 plain, discovery, selected, vibe=vibe, mode=mode,
                 start_label=start_query.strip(), end_label=dest_query.strip(),
@@ -159,7 +163,8 @@ def plan_route(
     )
 
 
-def _prepare_discovery(graph, start, end, plain, mode, budget, weights, adventurousness):
+def _prepare_discovery(graph, start, end, plain, mode, budget, weights, adventurousness,
+                       posture=None):
     """Corridor → score → shortlist → real travel matrix. Done ONCE per request.
 
     The expensive step is the matrix (cutoff-bounded multi-source Dijkstra), so we
@@ -171,6 +176,10 @@ def _prepare_discovery(graph, start, end, plain, mode, budget, weights, adventur
     if not candidates:
         return None, None, None
     scoring.score_pois(candidates, weights, adventurousness)
+    # Open-now awareness: demote places that are closed right now (heavily for
+    # stop-at categories, mildly for pass-by; unknown hours left untouched).
+    from discoverroute.routing import hours
+    hours.apply_open_now(candidates, posture)
     shortlist = sorted((p for p in candidates if p.score > 0),
                        key=lambda p: p.score, reverse=True)[: config.SOLVER_CANDIDATES]
     if not shortlist:
@@ -190,12 +199,11 @@ def _solve_one(graph, start, end, plain, mode, budget, shortlist, matrix, time_f
         return None, []
     budget_s = (1.0 + budget) * plain.time_s
 
-    # P1-2: Split budget into dwell and detour. Suggest 40% dwell, 60% detour.
-    # This means if you have 10 extra minutes, ~4 min for dwelling, ~6 min for travel.
-    dwell_budget_sec = (budget * plain.time_s * 0.4)
+    # P1-2, single shared pot: a stop's cost = added travel + dwell; a pass-by
+    # costs travel only. The solver enforces everything against budget_s, so the
+    # total trip (walking + lingering) never exceeds (1+budget) × direct.
     posture_dict = posture or {}
 
-    # posture_fn returns dwell time in seconds for a POI.
     def posture_fn(poi):
         from discoverroute.data import taxonomy
         poi_category = getattr(poi, "category", "attraction")
@@ -206,7 +214,6 @@ def _solve_one(graph, start, end, plain, mode, budget, shortlist, matrix, time_f
 
     result = ot.solve(start, end, pool, budget_s, time_fn,
                       max_pois=config.MAX_DETOUR_STOPS,
-                      dwell_budget_s=dwell_budget_sec,
                       posture_fn=posture_fn)
     if not result.ordered_pois:
         return None, []
@@ -216,6 +223,7 @@ def _solve_one(graph, start, end, plain, mode, budget, shortlist, matrix, time_f
         + [matrix.node_for(end)]
     )
     discovery = g.stitch_route(graph, waypoint_nodes, mode, result.ordered_pois)
+    discovery.dwell_s = result.dwell_time_s
     return discovery, result.ordered_pois
 
 
@@ -230,10 +238,12 @@ def _summary(plain: Route, discovery: Route | None, mode: str) -> str:
     line = f"**Plain route** · {plain.distance_m/1000:.2f} km · {plain.time_min:.0f} min"
     if discovery is None:
         return line + f" ({mode})"
-    extra = discovery.time_min - plain.time_min
+    dwell_min = discovery.dwell_s / 60.0
+    extra = discovery.time_min + dwell_min - plain.time_min
+    dwell_note = f" (incl. ~{dwell_min:.0f} min lingering)" if dwell_min >= 1 else ""
     return (
         f"**Discovery route** · {discovery.distance_m/1000:.2f} km · "
-        f"{discovery.time_min:.0f} min · **+{extra:.0f} min** of discovery "
-        f"past {len(discovery.waypoint_pois)} places\n\n"
+        f"{discovery.time_min + dwell_min:.0f} min · **+{extra:.0f} min** of "
+        f"discovery{dwell_note} past {len(discovery.waypoint_pois)} places\n\n"
         f"{line} ({mode}) — shown for comparison"
     )

@@ -29,6 +29,8 @@ class _Entry(NamedTuple):
     lon: float
     confidence: float
     n_tags: int
+    display: str       # original POI name, for autocomplete suggestions
+    category: str
 
 
 def _normalize(text: str) -> str:
@@ -72,6 +74,8 @@ def _index() -> tuple[dict[str, _Entry], list[_Entry]]:
             lon=float(row.lon),
             confidence=float(row.confidence),
             n_tags=int(row.n_tags),
+            display=str(row.name),
+            category=str(row.category),
         )
         entries.append(entry)
         best = exact.get(norm)
@@ -109,3 +113,42 @@ def local_geocode(query: str) -> tuple[float, float] | None:
         key=lambda e: (norm in e.norm, e.confidence, e.n_tags, -len(e.norm)),
     )
     return best.lat, best.lon
+
+
+@functools.lru_cache(maxsize=1024)
+def suggest(query: str, limit: int = 8) -> tuple[str, ...]:
+    """Autocomplete: Paris place names matching a partial query, best first.
+
+    Matches treat the last token as a prefix (the user is mid-word). Ranked by
+    (substring match, confidence, tag richness, name brevity); deduplicated by
+    display name. Pure local index — no network. Returns () for short/ambiguous
+    input rather than guessing.
+    """
+    norm = _strip_trailing_geo(_normalize(query or ""))
+    if len(norm) < 3:
+        return ()
+    _, entries = _index()
+    toks = norm.split()
+    head, last = frozenset(toks[:-1]), toks[-1]
+
+    scored: list[tuple[tuple, _Entry]] = []
+    for e in entries:
+        if norm in e.norm:
+            rank = 2  # full query appears verbatim in the name
+        elif head <= e.tokens and any(t.startswith(last) for t in e.tokens):
+            rank = 1  # all complete tokens present, last token a prefix
+        else:
+            continue
+        scored.append(((rank, e.confidence, e.n_tags, -len(e.norm)), e))
+
+    scored.sort(key=lambda t: t[0], reverse=True)
+    out: list[str] = []
+    seen: set[str] = set()
+    for _, e in scored:
+        if e.display in seen:
+            continue
+        seen.add(e.display)
+        out.append(e.display)
+        if len(out) >= limit:
+            break
+    return tuple(out)

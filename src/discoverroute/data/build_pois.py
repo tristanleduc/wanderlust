@@ -90,6 +90,7 @@ def build_pois(place: str = config.PARIS_PLACE) -> pd.DataFrame:
             continue
         osm_type, osm_id = (idx if isinstance(idx, tuple) else ("node", idx))
         name = tags.get("name")
+        hours = tags.get("opening_hours")
         records.append(
             {
                 "osm_type": str(osm_type),
@@ -102,6 +103,7 @@ def build_pois(place: str = config.PARIS_PLACE) -> pd.DataFrame:
                 "quietness": taxonomy.quietness(category),
                 "confidence": round(taxonomy.confidence(tags), 4),
                 "n_tags": len(tags),
+                "opening_hours": str(hours) if hours is not None else None,
             }
         )
 

@@ -39,6 +39,7 @@ class Route:
     distance_m: float
     mode: str
     waypoint_pois: list = field(default_factory=list)  # filled by later bricks
+    dwell_s: float = 0.0  # planned lingering time at stops (P1-2)
 
     @property
     def time_s(self) -> float:

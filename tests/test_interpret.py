@@ -53,18 +53,29 @@ def test_budget_and_posture_hints():
 
 @data_ready
 def test_vibe_changes_route_categories():
-    """Same A/B, contrasting vibes -> measurably different waypoint mixes (P0-5)."""
-    from collections import Counter
+    """Same A/B, contrasting vibes -> each route serves ITS OWN vibe best (P0-5).
+
+    Property-based rather than exact category counts (which are brittle across
+    embedder backends): scoring each route's categories under a vibe's affinity,
+    the route planned FOR that vibe must fit it at least as well as the route
+    planned for the contrasting vibe.
+    """
+    from discoverroute.interpret.embed import vibe_to_affinity
     from discoverroute.pipeline import plan_route
 
     a = "Place de la République, Paris"
     b = "Jardin du Luxembourg, Paris"
-    green = plan_route(a, b, budget=0.7, vibe="quiet green park wander")
-    lively = plan_route(a, b, budget=0.7, vibe="lively bar and café crawl")
+    v_green, v_lively = "quiet green park wander", "lively bar and café crawl"
+    green = plan_route(a, b, budget=0.7, vibe=v_green)
+    lively = plan_route(a, b, budget=0.7, vibe=v_lively)
+    assert green.pois and lively.pois
 
-    gc = Counter(p.category for p in green.pois)
-    lc = Counter(p.category for p in lively.pois)
     # the two routes should not select an identical set of waypoints
     assert {p.osm_id for p in green.pois} != {p.osm_id for p in lively.pois}
-    # lively should pull in more bars/restaurants than the green wander
-    assert lc["bar_pub"] + lc["restaurant"] >= gc["bar_pub"] + gc["restaurant"]
+
+    def fit(route, affinity):  # mean affinity of the route's categories
+        return sum(affinity.get(p.category, 0.0) for p in route.pois) / len(route.pois)
+
+    aff_green, aff_lively = vibe_to_affinity(v_green), vibe_to_affinity(v_lively)
+    assert fit(green, aff_green) >= fit(lively, aff_green)
+    assert fit(lively, aff_lively) >= fit(green, aff_lively)

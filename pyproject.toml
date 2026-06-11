@@ -20,6 +20,7 @@ dependencies = [
 # Brick 4/6: vibe interpretation + narration. Kept optional so the
 # walking skeleton (Bricks 0-3) installs without ML weights.
 ml = [
+    "fastembed>=0.4",
     "sentence-transformers>=3.0",
     "transformers>=4.45",
     "accelerate>=1.0",

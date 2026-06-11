@@ -28,7 +28,8 @@ def _saved_md(profile: dict) -> str:
 
 
 def _alt_label(i: int, alt, plain) -> str:
-    extra = round(alt.discovery.time_min - plain.time_min)
+    extra = round(alt.discovery.time_min + alt.discovery.dwell_s / 60.0
+                  - plain.time_min)
     from collections import Counter
     top = Counter(p.category for p in alt.pois).most_common(2)
     flavor = ", ".join(c.replace("_", " ") for c, _ in top)
@@ -111,6 +112,22 @@ def on_clear_profile():
     return empty, "", _saved_md(empty)
 
 
+def on_suggest(evt: gr.KeyUpData):
+    """Autocomplete a Start/Destination field from the local POI-name index."""
+    from discoverroute.routing.geocode import suggest
+    typed = evt.input_value or ""
+    matches = list(suggest(typed))
+    # keep what the user typed selectable on top; never clobber their text
+    choices = ([typed] if typed and typed not in matches else []) + matches
+    return gr.update(choices=choices or [typed])
+
+
+def show_loading():
+    """Instant feedback the moment Plan is clicked (the .then chain computes)."""
+    return (design.LOADING_HTML, gr.update(visible=False),
+            gr.update(visible=False), gr.update(visible=False))
+
+
 def build_ui() -> gr.Blocks:
     with gr.Blocks(title="DiscoverRoute · Paris") as demo:
         profile = gr.BrowserState(
@@ -126,13 +143,17 @@ def build_ui() -> gr.Blocks:
             # ---- LEFT: controls --------------------------------------------
             with gr.Column(scale=4, min_width=340):
                 with gr.Group():
-                    start = gr.Textbox(label="Start", elem_id="dr-start",
-                                       elem_classes="dr-field",
-                                       info="Address, or 'lat, lon'",
-                                       value="Place de la République, Paris")
-                    dest = gr.Textbox(label="Destination", elem_id="dr-dest",
-                                      elem_classes="dr-field",
-                                      value="Jardin du Luxembourg, Paris")
+                    start = gr.Dropdown(
+                        label="Start", elem_id="dr-start", elem_classes="dr-field",
+                        info="Type a Paris place — suggestions appear as you type",
+                        value="Place de la République, Paris",
+                        choices=["Place de la République, Paris"],
+                        allow_custom_value=True, filterable=True)
+                    dest = gr.Dropdown(
+                        label="Destination", elem_id="dr-dest", elem_classes="dr-field",
+                        value="Jardin du Luxembourg, Paris",
+                        choices=["Jardin du Luxembourg, Paris"],
+                        allow_custom_value=True, filterable=True)
                     vibe = gr.Textbox(label="Vibe (free text)", elem_id="dr-vibe",
                                       elem_classes="dr-field",
                                       info="e.g. 'quiet green wander' or 'lively café crawl'")
@@ -184,7 +205,18 @@ def build_ui() -> gr.Blocks:
                 nodetour_html = gr.HTML(design.NO_DETOUR_HTML, visible=False,
                                         elem_id="dr-nodetour")
 
+        # Cosmetic map-press bounce. Gradio feeds an event's `js` return value
+        # back as the inputs to its `fn`; a side-effect-only js (returns
+        # undefined) attached to the data event corrupts on_plan's inputs and
+        # white-screens the frontend. So keep the animation on its own fn-less
+        # listener, where its return value is harmless.
+        go.click(None, js=design.DR_CELEBRATE)
+        # Loading state first (instant), then the actual planning overwrites it.
         go.click(
+            show_loading,
+            outputs=[map_out, results_grp, nodetour_html, alt_radio],
+            show_progress="hidden",
+        ).then(
             on_plan,
             inputs=[start, dest, mode, budget, vibe, adventurousness,
                     prefer_green, prefer_quiet, profile],
@@ -192,8 +224,10 @@ def build_ui() -> gr.Blocks:
                      summary_out, interpretation_out, itinerary_out,
                      alts_state, last_cats],
             show_progress="minimal",
-            js=design.DR_CELEBRATE,
         )
+        # Autocomplete Start/Destination from the local POI-name index.
+        for _field in (start, dest):
+            _field.key_up(on_suggest, outputs=[_field], show_progress="hidden")
         alt_radio.change(on_select_alt, inputs=[alt_radio, alts_state],
                          outputs=[map_out, summary_out, itinerary_out])
         save_places_btn.click(on_save_places, inputs=[profile, last_cats],
@@ -208,7 +242,8 @@ def build_ui() -> gr.Blocks:
 
 
 def warmup():
-    """Preload graph + CSR + POIs at boot so the first request is fast (~1s)."""
+    """Preload graph + CSR + POIs + the vibe embedder at boot so the first
+    request is fast (~1s) instead of paying the torch/model load lazily."""
     try:
         from discoverroute.routing import graph as g
         from discoverroute.routing import pois as poimod
@@ -217,7 +252,13 @@ def warmup():
         poimod.load_pois()
         print("[warmup] routing graph + POIs ready", flush=True)
     except Exception as exc:  # noqa: BLE001
-        print(f"[warmup] FAILED: {exc}", flush=True)
+        print(f"[warmup] graph FAILED: {exc}", flush=True)
+    try:
+        from discoverroute.interpret import embed
+        embed.vibe_to_affinity("quiet green wander")  # loads model + gloss cache
+        print("[warmup] vibe embedder ready", flush=True)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[warmup] embedder skipped: {exc}", flush=True)
 
 
 if __name__ == "__main__":
@@ -226,5 +267,4 @@ if __name__ == "__main__":
         theme=design.build_theme(),
         css=design.DR_CSS,
         head=design.DR_HEAD,
-        js=design.DR_JS,
     )

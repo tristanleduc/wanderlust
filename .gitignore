@@ -16,9 +16,16 @@ flagged/
 # OS
 .DS_Store
 
-# Design handoff assets (build-time reference only — not shipped to the Space)
+# Design handoff assets (build-time reference only — not shipped to the Space;
+# the marker SVGs are vendored into src/discoverroute/ui/icons/)
 ux app.zip
 ux-design/
+design_handoff_discoverroute/
+design_handoff_discoverroute copy/
+
+# Local dev tooling + scratch test output
+.claude/
+test_output.log
 
 # NOTE: data/*.graphml and data/*.parquet are the offline build artifacts.
 # They are committed for the Hugging Face Space so it needs no runtime download.

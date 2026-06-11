@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 84" width="64" height="84" role="img" aria-label="Market marker">
+  <path d="M32 80 C19 60 7 46 7 30 A25 25 0 1 1 57 30 C57 46 45 60 32 80 Z" fill="#FF6A52"></path>
+  <path d="M11 41 C17 55 26 66 32 80 C38 66 47 55 53 41 C47 47 40 49 32 49 C24 49 17 47 11 41 Z" fill="#E14D37" opacity=".22"></path>
+  <path d="M18 15 A23 23 0 0 1 40 10" fill="none" stroke="#fff" stroke-opacity=".4" stroke-width="4" stroke-linecap="round"></path>
+  <circle cx="32" cy="30" r="15.5" fill="#FFFCF5"></circle>
+  <g transform="translate(20 18)" fill="none" stroke="#D8381F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 8.5h11l-1 11h-9ZM9.5 8.5V6.5a2.5 2.5 0 0 1 5 0v2"></path></g>
+</svg>
