@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# OSMnx HTTP cache (regenerable)
+cache/
+
+# Gradio
+.gradio/
+flagged/
+
+# OS
+.DS_Store
+
+# Design handoff assets (build-time reference only — not shipped to the Space)
+ux app.zip
+ux-design/
+
+# NOTE: data/*.graphml and data/*.parquet are the offline build artifacts.
+# They are committed for the Hugging Face Space so it needs no runtime download.
+# If they exceed Space size limits, switch to git-lfs (see PROGRESS.md).
