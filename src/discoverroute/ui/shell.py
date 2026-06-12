@@ -25,76 +25,139 @@ body{ font-family:'DM Sans',ui-sans-serif,system-ui,sans-serif; color:var(--dr-i
   background:radial-gradient(1100px 520px at 88% -8%,#FBEFD6 0%,transparent 60%),var(--dr-cream); }
 
 .app-shell{
-  display:grid; grid-template-columns:320px 1fr; grid-template-rows:auto 1fr;
+  display:grid; grid-template-columns:340px 1fr; grid-template-rows:auto 1fr;
   height:100vh; width:100%; background:var(--dr-cream);
 }
 
-/* ---- hero (compact ≤120px, content + colors preserved) ---- */
-.hero{ grid-column:1 / -1; grid-row:1; display:flex; align-items:center; gap:18px;
+/* ---- hero (compact but roomy — content must never clip) ---- */
+.hero{ grid-column:1 / -1; grid-row:1; display:flex; align-items:center; gap:22px;
   background:linear-gradient(120deg,#2F5DF4,#5C7DF8); color:#fff;
-  padding:12px 26px; max-height:120px; overflow:hidden; position:relative; }
-.hero .hero-body{ flex:1; min-width:0; }
-.hero .loc-pill{ display:inline-flex; align-items:center; gap:7px; background:rgba(255,255,255,.16);
-  border-radius:999px; padding:3px 11px; font-family:'Fredoka',sans-serif; font-weight:600;
-  font-size:11.5px; letter-spacing:.04em; }
-.hero .loc-pill .dot{ width:7px;height:7px;border-radius:50%;background:#FFC247; }
-.hero h1{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:28px; letter-spacing:-.02em;
-  margin:5px 0 3px; line-height:1.05; color:#fff; }
+  padding:18px 34px; max-height:180px; overflow:hidden; position:relative;
+  box-shadow:0 10px 30px -18px rgba(33,74,208,.7); z-index:3; }
+.hero::after{ content:''; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(420px 180px at 96% -30%,rgba(255,255,255,.16),transparent 70%); }
+.hero .hero-body{ flex:1; min-width:0; position:relative; z-index:1; }
+.hero .loc-pill{ display:inline-flex; align-items:center; gap:7px; background:rgba(255,255,255,.18);
+  border-radius:999px; padding:4px 12px; font-family:'Fredoka',sans-serif; font-weight:600;
+  font-size:11.5px; letter-spacing:.05em; text-transform:uppercase; }
+.hero .loc-pill .dot{ width:7px;height:7px;border-radius:50%;background:#FFC247;
+  box-shadow:0 0 0 0 rgba(255,194,71,.7); animation:drBeacon 2.4s ease-out infinite; }
+@keyframes drBeacon{ 0%{ box-shadow:0 0 0 0 rgba(255,194,71,.6); }
+  70%,100%{ box-shadow:0 0 0 7px rgba(255,194,71,0); } }
+.hero h1{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:30px; letter-spacing:-.025em;
+  margin:7px 0 4px; line-height:1.04; color:#fff; }
 .hero h1 .accent{ color:#FFE0A0; }
-.hero p{ margin:0 0 7px; max-width:62ch; color:#EAF0FF; font-size:13px; line-height:1.3; }
-.hero .badges{ display:flex; flex-wrap:wrap; gap:7px; }
-.hero .badges span{ background:rgba(255,255,255,.13); border-radius:999px; padding:4px 11px;
+.hero p{ margin:0 0 9px; max-width:64ch; color:#EAF0FF; font-size:13px; line-height:1.35; }
+.hero .badges{ display:flex; flex-wrap:wrap; gap:8px; }
+.hero .badges span{ background:rgba(255,255,255,.14); border-radius:999px; padding:5px 12px;
   font-size:11.5px; font-family:'Fredoka',sans-serif; font-weight:500; }
-.hero .hero-art{ flex-shrink:0; width:80px; }
-.hero .hero-art svg{ width:80px; height:auto; display:block; }
-.hero .titan-chip{ position:absolute; top:10px; right:18px; background:rgba(255,255,255,.16);
-  border-radius:999px; padding:3px 10px; font-size:10.5px; font-family:'Fredoka',sans-serif;
+.hero .hero-art{ flex-shrink:0; width:84px; position:relative; z-index:1;
+  animation:drFloat 6s ease-in-out infinite; }
+.hero .hero-art svg{ width:84px; height:auto; display:block; }
+@keyframes drFloat{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-7px); } }
+.hero .titan-chip{ position:absolute; top:12px; right:20px; z-index:2;
+  display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.18);
+  border-radius:999px; padding:4px 12px; font-size:10.5px; font-family:'Fredoka',sans-serif;
   font-weight:600; letter-spacing:.02em; }
+.hero .titan-chip::before{ content:''; width:6px; height:6px; border-radius:50%;
+  background:#9BF0BE; box-shadow:0 0 6px #6FE39C; }
 
-/* ---- left control panel (320px, scrollable, sticky CTA) ---- */
-.left-panel{ grid-column:1; grid-row:2; width:320px; height:100%; overflow-y:auto;
-  padding:18px 16px 0; border-right:1px solid rgba(0,0,0,.08); background:var(--dr-cream);
+/* ---- left control panel (340px, scrollable, sticky CTA) ---- */
+.left-panel{ grid-column:1; grid-row:2; width:340px; height:100%; overflow:hidden;
+  border-right:1px solid var(--dr-line);
+  background:linear-gradient(180deg,#FBF3E2,var(--dr-cream) 140px);
   display:flex; flex-direction:column; }
-.dr-control{ margin-bottom:13px; }
+.panel-scroll{ flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden;
+  padding:20px 18px 10px; scrollbar-width:thin; scrollbar-color:var(--dr-line) transparent; }
+.panel-scroll::-webkit-scrollbar{ width:9px; }
+.panel-scroll::-webkit-scrollbar-thumb{ background:var(--dr-line); border-radius:9px;
+  border:3px solid transparent; background-clip:content-box; }
+.dr-control{ margin-bottom:15px; }
 .dr-label{ display:block; font-family:'Fredoka',sans-serif; font-weight:600; font-size:13.5px;
-  color:var(--dr-ink); margin-bottom:5px; }
-.dr-help{ font-size:11.5px; color:var(--dr-soft); margin-top:3px; }
-.left-panel input[type=text]{ width:100%; padding:10px 12px; font-size:14px; }
+  color:var(--dr-ink); margin-bottom:6px; }
+.dr-label .opt-tag{ font-family:'DM Sans',sans-serif; font-weight:500; font-size:10.5px;
+  color:var(--dr-soft); text-transform:uppercase; letter-spacing:.05em; margin-left:6px; }
+.dr-help{ font-size:11.5px; color:var(--dr-soft); margin-top:4px; line-height:1.4; }
+.left-panel input[type=text]{ width:100%; padding:11px 13px; font-size:14px; }
+
+/* a leading pin/flag glyph for the start & destination fields */
+.field-wrap{ position:relative; }
+.field-wrap > input[type=text]{ padding-left:34px; }
+.field-wrap::before{ content:attr(data-glyph); position:absolute; left:12px; top:50%;
+  transform:translateY(-50%); font-size:14px; pointer-events:none; z-index:2; line-height:1; }
+
 .combo{ position:relative; }
-.combo-list{ position:absolute; z-index:50; left:0; right:0; top:calc(100% + 3px);
-  background:var(--dr-paper); border:1px solid var(--dr-line); border-radius:14px;
-  box-shadow:0 14px 30px -14px rgba(43,38,32,.4); overflow:hidden; display:none; }
-.combo-list.open{ display:block; }
-.combo-list div{ padding:9px 12px; font-size:13.5px; cursor:pointer; }
+.combo-list{ position:absolute; z-index:60; left:0; right:0; top:calc(100% + 5px);
+  background:var(--dr-paper); border:1.5px solid var(--dr-line); border-radius:16px;
+  box-shadow:0 18px 38px -16px rgba(43,38,32,.45); overflow:hidden; display:none; padding:5px; }
+.combo-list.open{ display:block; animation:drPop .16s var(--dr-spring); }
+@keyframes drPop{ from{ transform:translateY(-4px); opacity:.4; } to{ transform:none; opacity:1; } }
+.combo-list div{ padding:9px 11px; font-size:13.5px; cursor:pointer; border-radius:11px;
+  display:flex; align-items:center; gap:8px; transition:background .12s; }
+.combo-list div::before{ content:'📍'; font-size:11px; opacity:.55; }
 .combo-list div:hover,.combo-list div.active{ background:#F1FAF4; }
-.dr-slider{ display:flex; align-items:center; gap:10px; }
+.combo-list div.active{ box-shadow:inset 0 0 0 1.5px rgba(47,164,99,.4); }
+
+/* ---- VIBE — the star input ---- */
+.vibe-block{ background:var(--dr-paper); border:1.5px solid var(--dr-line); border-radius:20px;
+  padding:14px 14px 12px; margin-bottom:16px;
+  box-shadow:0 14px 34px -22px rgba(43,38,32,.4); position:relative; }
+.vibe-block::before{ content:'⭐ start here'; position:absolute; top:-9px; left:14px;
+  background:var(--dr-sun); color:#5A3D00; font-family:'Fredoka',sans-serif; font-weight:600;
+  font-size:10px; letter-spacing:.04em; text-transform:uppercase; padding:2px 9px;
+  border-radius:999px; box-shadow:0 4px 10px -4px rgba(255,194,71,.9); }
+.vibe-block .dr-label{ font-size:15px; margin-top:2px; }
+.vibe-block input[type=text]{ font-size:15px !important; }
+.vibe-chips{ display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
+.vibe-chips .chip{ border:1.5px solid var(--dr-line); background:#FFFDF8; color:var(--dr-ink);
+  border-radius:999px; padding:6px 12px; font-size:12px; font-family:'DM Sans',sans-serif;
+  font-weight:500; cursor:pointer; transition:all .18s var(--dr-spring); }
+.vibe-chips .chip:hover{ transform:translateY(-2px); border-color:var(--dr-coral);
+  background:#FFF1ED; box-shadow:0 8px 16px -10px rgba(255,106,82,.7); }
+.vibe-chips .chip:active{ transform:translateY(0); }
+.vibe-chips .chip.on{ border-color:var(--dr-coral); background:var(--dr-coral); color:#fff;
+  box-shadow:0 8px 18px -8px rgba(255,106,82,.8); }
+
+.dr-slider{ display:flex; align-items:center; gap:12px; }
 .dr-slider input[type=range]{ flex:1; }
 .dr-slider output{ font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--dr-soft);
-  min-width:30px; text-align:right; }
-details.dr-collapse{ padding:0; margin-bottom:13px; }
-details.dr-collapse summary{ list-style:none; cursor:pointer; padding:11px 14px;
-  font-family:'Fredoka',sans-serif; font-weight:600; font-size:13px; color:var(--dr-ink); }
+  min-width:34px; text-align:right; padding:2px 7px; background:#FFFDF8; border:1px solid var(--dr-line);
+  border-radius:8px; }
+.slider-ends{ display:flex; justify-content:space-between; font-size:10.5px; color:var(--dr-soft);
+  margin-top:3px; letter-spacing:.02em; }
+
+details.dr-collapse{ padding:0; margin-bottom:14px; }
+details.dr-collapse summary{ list-style:none; cursor:pointer; padding:12px 15px;
+  font-family:'Fredoka',sans-serif; font-weight:600; font-size:13px; color:var(--dr-ink);
+  display:flex; align-items:center; justify-content:space-between; gap:8px; }
 details.dr-collapse summary::-webkit-details-marker{ display:none; }
+details.dr-collapse summary::after{ content:'▾'; color:var(--dr-soft); font-size:12px;
+  transition:transform .2s ease; }
+details.dr-collapse[open] summary::after{ transform:rotate(180deg); }
 details.dr-collapse[open] summary{ border-bottom:1.5px dashed var(--dr-line); }
-details.dr-collapse .collapse-body{ padding:12px 14px; }
-.dr-cta-wrap{ position:sticky; bottom:0; padding:12px 0; margin-top:auto;
-  background:linear-gradient(180deg,rgba(246,236,217,0),var(--dr-cream) 32%); }
-#dr-plan button{ width:100%; padding:13px; cursor:pointer; }
+details.dr-collapse .collapse-body{ padding:13px 15px; }
+
+.dr-cta-wrap{ flex:0 0 auto; padding:12px 18px 16px; background:var(--dr-cream);
+  border-top:1px solid var(--dr-line); box-shadow:0 -10px 22px -18px rgba(43,38,32,.5); }
+#dr-plan button{ width:100%; padding:15px; cursor:pointer; }
+.cta-hint{ text-align:center; font-size:11px; color:var(--dr-soft); margin-top:8px; }
 .dr-note{ font-size:12.5px; color:var(--dr-soft); margin:8px 0; }
 .dr-row{ display:flex; gap:8px; }
-.dr-row button{ flex:1; padding:8px; border-radius:12px; border:1px solid var(--dr-line);
+.dr-row button{ flex:1; padding:9px; border-radius:12px; border:1.5px solid var(--dr-line);
   background:var(--dr-paper); font-family:'Fredoka',sans-serif; font-weight:600; cursor:pointer;
-  color:var(--dr-ink); }
-.dr-star{ width:100%; margin-top:8px; padding:9px; border-radius:12px; border:1px solid var(--dr-line);
-  background:var(--dr-paper); font-family:'Fredoka',sans-serif; font-weight:600; cursor:pointer;
-  color:var(--dr-ink); }
+  color:var(--dr-ink); transition:all .16s var(--dr-spring); }
+.dr-row button:hover{ transform:translateY(-2px); border-color:var(--dr-cobalt); }
+.dr-star{ width:100%; margin-top:10px; padding:10px; border-radius:12px; border:1.5px dashed var(--dr-line);
+  background:#FFFDF8; font-family:'Fredoka',sans-serif; font-weight:600; cursor:pointer;
+  color:var(--dr-ink); transition:all .16s var(--dr-spring); }
+.dr-star:hover{ transform:translateY(-2px); border-color:var(--dr-sun); background:#FFF8E8; }
 
 /* ---- right column: map · summary bar · itinerary ---- */
 .right-col{ grid-column:2; grid-row:2; display:flex; flex-direction:column; height:100%;
-  min-width:0; padding:14px 16px 0; gap:12px; overflow:hidden; }
-.map-container{ flex:1 1 0; min-height:480px; position:relative; }
+  min-width:0; padding:16px 18px 0; gap:14px; overflow:hidden; }
+.map-container{ flex:1 1 0; min-height:240px; position:relative; }
 #dr-map{ height:100%; }
-#dr-map .map-inner{ position:absolute; inset:34px 0 0 0; }
+#dr-map .map-inner{ position:absolute; inset:46px 0 0 0; }
 #dr-map .map-inner > div,
 #dr-map iframe,
 #dr-map .folium-map,
@@ -104,33 +167,53 @@ details.dr-collapse .collapse-body{ padding:12px 14px; }
 #dr-summary{ margin:0; }
 /* the styled result blocks only exist once a route is planned */
 #dr-summary:empty, #dr-interp:empty, #dr-itin:empty, #dr-nodetour:empty{ display:none; }
-.itinerary-panel{ flex:0 0 auto; max-height:40vh; overflow-y:auto; padding-bottom:14px; }
-#dr-options{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px; }
-#dr-options .opt{ border:2px solid var(--dr-line); border-radius:var(--dr-r); padding:10px 13px;
-  background:var(--dr-paper); color:var(--dr-ink); cursor:pointer; font-size:12.5px;
-  transition:all .2s var(--dr-spring); }
+.itinerary-panel{ flex:0 1 auto; min-height:0; max-height:46vh; overflow-y:auto; padding-bottom:16px;
+  scrollbar-width:thin; scrollbar-color:var(--dr-line) transparent; }
+.itinerary-panel::-webkit-scrollbar{ width:9px; }
+.itinerary-panel::-webkit-scrollbar-thumb{ background:var(--dr-line); border-radius:9px;
+  border:3px solid transparent; background-clip:content-box; }
+#dr-options{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+#dr-options:empty{ display:none; }
+#dr-options .opt{ border:2px solid var(--dr-line); border-radius:var(--dr-r); padding:11px 14px;
+  background:var(--dr-paper); color:var(--dr-ink); cursor:pointer; font-size:12.5px; font-weight:500;
+  box-shadow:0 6px 16px -14px rgba(43,38,32,.5);
+  transition:transform .2s var(--dr-spring), border-color .2s, box-shadow .2s; }
 #dr-options .opt:hover{ transform:translateY(-3px); }
 #dr-options .opt.selected{ border-color:var(--dr-grass); background:#F1FAF4;
   box-shadow:0 10px 26px -14px rgba(47,164,99,.6); }
 
+/* onboarding hint shown in the itinerary slot before the first plan */
+.onboard{ background:#FFFDF8; border:1.5px dashed var(--dr-line); border-radius:var(--dr-r);
+  padding:16px 18px; display:flex; gap:13px; align-items:flex-start; }
+.onboard .ob-emoji{ font-size:22px; line-height:1; flex-shrink:0; margin-top:1px; }
+.onboard h3{ font-family:'Fredoka',sans-serif; font-weight:600; font-size:15px; margin:0 0 3px;
+  color:var(--dr-ink); }
+.onboard p{ margin:0; font-size:12.5px; color:var(--dr-soft); line-height:1.5; }
+
 /* ---- loading: stride + 4-step stepper (State 2) ---- */
-#dr-loading{ position:absolute; inset:34px 0 0 0; z-index:20; display:none;
+#dr-loading{ position:absolute; inset:46px 0 0 0; z-index:20; display:none;
   place-items:center; border-radius:0 0 26px 26px;
   background:radial-gradient(700px 320px at 50% 0%,#FBEFD6 0%,transparent 70%),#F6ECD9; }
-#dr-loading.on{ display:grid; }
-.stepper{ display:flex; align-items:center; gap:0; margin-top:18px; }
-.stepper .step{ display:flex; flex-direction:column; align-items:center; gap:6px; width:120px;
-  opacity:.4; transition:opacity .4s ease; }
+#dr-loading.on{ display:grid; animation:drFade .25s ease; }
+@keyframes drFade{ from{ opacity:0; } to{ opacity:1; } }
+.stepper{ display:flex; align-items:flex-start; gap:0; margin-top:22px; }
+.stepper .step{ display:flex; flex-direction:column; align-items:center; gap:8px; width:118px;
+  opacity:.38; transition:opacity .4s ease; }
 .stepper .step.active{ opacity:1; }
-.stepper .step .pip{ width:14px; height:14px; border-radius:50%; background:#CFE8D8;
-  transition:background .4s ease, transform .4s var(--dr-spring); }
-.stepper .step.active .pip{ background:var(--dr-grass); transform:scale(1.15); }
+.stepper .step .pip{ width:16px; height:16px; border-radius:50%; background:#CFE8D8;
+  transition:background .4s ease, transform .4s var(--dr-spring); position:relative; }
+.stepper .step.active .pip{ background:var(--dr-grass); transform:scale(1.18);
+  box-shadow:0 4px 10px -3px rgba(47,164,99,.7); }
+.stepper .step.current .pip::after{ content:''; position:absolute; inset:-5px; border-radius:50%;
+  border:2px solid var(--dr-grass); opacity:.5; animation:drRing 1.1s ease-out infinite; }
+@keyframes drRing{ 0%{ transform:scale(.7); opacity:.6; } 100%{ transform:scale(1.5); opacity:0; } }
 .stepper .step .lbl{ font-size:11.5px; font-family:'DM Sans',sans-serif; color:var(--dr-ink);
-  text-align:center; }
-.stepper .bar{ flex:1; height:3px; min-width:24px; background:#CFE8D8; position:relative; }
+  text-align:center; line-height:1.25; }
+.stepper .bar{ flex:1; height:3px; min-width:22px; margin-top:7px; background:#CFE8D8;
+  border-radius:3px; transition:background .4s ease; }
 .stepper .bar.fill{ background:var(--dr-grass); }
 /* State 1 — non-Paris graph load (inert for the Paris demo, built per brief) */
-#dr-mapping{ position:absolute; inset:34px 0 0 0; z-index:21; display:none; place-items:center;
+#dr-mapping{ position:absolute; inset:46px 0 0 0; z-index:21; display:none; place-items:center;
   background:#F6ECD9; }
 #dr-mapping.on{ display:grid; }
 #dr-mapping .pulse{ width:18px;height:18px;border-radius:50%;background:var(--dr-grass);
@@ -139,6 +222,7 @@ details.dr-collapse .collapse-body{ padding:12px 14px; }
 
 /* no-detour sticker slot */
 #dr-nodetour:empty{ display:none; }
+#dr-nodetour{ margin-bottom:14px; }
 
 /* mobile FAB (hidden on desktop) */
 .fab{ display:none; }
@@ -148,24 +232,32 @@ details.dr-collapse .collapse-body{ padding:12px 14px; }
   .app-shell{ grid-template-columns:1fr; grid-template-rows:auto 1fr; height:100vh; }
   .hero{ max-height:none; }
   .hero .hero-art{ display:none; }
+  .hero .titan-chip{ position:static; margin-top:8px; align-self:flex-start; }
   .right-col{ grid-column:1; grid-row:2; padding:0; gap:0; }
   .map-container{ min-height:0; }
   #dr-map .map-inner, #dr-loading, #dr-mapping{ inset:0; }
   .itinerary-panel{ max-height:34vh; padding:0 14px 14px; }
   .route-summary-bar{ padding:0 12px; }
   .left-panel{ position:fixed; left:0; right:0; bottom:0; top:auto; z-index:200; width:100%;
-    height:auto; max-height:78vh; border-right:none; border-top-left-radius:24px;
-    border-top-right-radius:24px; box-shadow:0 -18px 44px -20px rgba(43,38,32,.4);
-    transform:translateY(110%); transition:transform .32s var(--dr-spring); }
+    height:auto; max-height:84vh; border-right:none; border-top-left-radius:26px;
+    border-top-right-radius:26px; box-shadow:0 -18px 44px -20px rgba(43,38,32,.4);
+    transform:translateY(110%); transition:transform .32s var(--dr-spring);
+    padding-top:8px; }
   .left-panel.open{ transform:translateY(0); }
   .fab{ display:grid; place-items:center; position:fixed; right:18px; bottom:18px; z-index:210;
-    width:60px; height:60px; border-radius:50%; border:none; cursor:pointer;
-    background:var(--dr-coral); color:#fff; font-size:24px;
-    box-shadow:0 10px 24px -8px rgba(255,106,82,.8); }
-  .drawer-close{ display:block; }
+    width:62px; height:62px; border-radius:50%; border:none; cursor:pointer;
+    background:var(--dr-coral); color:#fff; font-size:15px; font-family:'Fredoka',sans-serif;
+    font-weight:600; line-height:1.05; text-align:center;
+    box-shadow:0 12px 26px -8px rgba(255,106,82,.85); transition:transform .18s var(--dr-spring); }
+  .fab:hover{ transform:translateY(-3px); }
+  .drawer-close{ display:flex; }
 }
-.drawer-close{ display:none; width:100%; text-align:center; padding:6px; font-size:22px;
-  color:var(--dr-soft); cursor:pointer; }
+.drawer-close{ display:none; align-items:center; justify-content:center; width:44px; height:44px;
+  margin:0 auto 4px; border-radius:50%; background:#FFFDF8; border:1.5px solid var(--dr-line);
+  font-size:22px; color:var(--dr-soft); cursor:pointer; }
+.drawer-grip{ display:none; }
+@media (max-width:768px){ .drawer-grip{ display:block; width:42px; height:5px; border-radius:999px;
+  background:var(--dr-line); margin:2px auto 8px; } }
 
 @media (prefers-reduced-motion:reduce){ *{ animation:none !important; transition:none !important; } }
 """
@@ -192,38 +284,67 @@ def _compact_hero() -> str:
 """
 
 
+_VIBE_PRESETS = [
+    "quiet green wander",
+    "lively café crawl",
+    "bookshops & old churches",
+    "morning coffee crawl",
+    "riverside stroll",
+    "art & history",
+]
+
+
+def _vibe_chips() -> str:
+    chips = "".join(
+        f'<button type="button" class="chip" data-vibe="{v.replace(chr(34), "")}">{v}</button>'
+        for v in _VIBE_PRESETS
+    )
+    return f'<div class="vibe-chips" id="dr-vibe-chips">{chips}</div>'
+
+
 def _left_panel() -> str:
-    return """
+    return f"""
 <aside class="left-panel" id="left-panel">
-  <div class="drawer-close" id="drawer-close">×</div>
+  <div class="drawer-grip"></div>
+  <div class="drawer-close" id="drawer-close" role="button" tabindex="0"
+       aria-label="Close controls">&times;</div>
+
+  <div class="panel-scroll">
+  <div class="vibe-block">
+    <div class="dr-control combo" style="margin-bottom:0;">
+      <label class="dr-label" for="dr-vibe">What's your vibe today?</label>
+      <input type="text" id="dr-vibe" class="dr-field"
+             placeholder="Describe the wander you're after…">
+      <div class="dr-help">Tell me the mood — I'll read it and pick places to match.</div>
+    </div>
+    {_vibe_chips()}
+  </div>
 
   <div class="dr-control combo">
     <label class="dr-label" for="dr-start">Start</label>
-    <input type="text" id="dr-start" class="dr-field" autocomplete="off"
-           value="Place de la République, Paris">
+    <div class="field-wrap" data-glyph="📍">
+      <input type="text" id="dr-start" class="dr-field" autocomplete="off"
+             value="Place de la République, Paris">
+    </div>
     <div class="combo-list" id="dr-start-list"></div>
-    <div class="dr-help">Type a Paris place — suggestions appear as you type</div>
+    <div class="dr-help">Try a landmark or place name — not a street address.</div>
   </div>
 
   <div class="dr-control combo">
     <label class="dr-label" for="dr-dest">Destination</label>
-    <input type="text" id="dr-dest" class="dr-field" autocomplete="off"
-           value="Jardin du Luxembourg, Paris">
+    <div class="field-wrap" data-glyph="🏁">
+      <input type="text" id="dr-dest" class="dr-field" autocomplete="off"
+             value="Jardin du Luxembourg, Paris">
+    </div>
     <div class="combo-list" id="dr-dest-list"></div>
-  </div>
-
-  <div class="dr-control">
-    <label class="dr-label" for="dr-vibe">Vibe (free text)</label>
-    <input type="text" id="dr-vibe" class="dr-field"
-           placeholder="e.g. 'quiet green wander' or 'lively café crawl'">
   </div>
 
   <div class="dr-control">
     <label class="dr-label">Mode</label>
     <div id="dr-mode" class="dr-seg">
       <div class="wrap">
-        <label class="selected" data-v="walk">walk</label>
-        <label data-v="bike">bike</label>
+        <label class="selected" data-v="walk" role="button" tabindex="0">🚶 walk</label>
+        <label data-v="bike" role="button" tabindex="0">🚲 bike</label>
       </div>
     </div>
   </div>
@@ -231,52 +352,54 @@ def _left_panel() -> str:
   <div class="dr-control">
     <label class="dr-label" for="dr-budget-i">Detour budget</label>
     <div id="dr-budget" class="dr-slider">
-      <input type="range" id="dr-budget-i" min="0" max="2" step="0.1" value="0.5">
+      <input type="range" id="dr-budget-i" min="0" max="2" step="0.1" value="0.5"
+             aria-label="Detour budget">
       <output id="dr-budget-o">0.5</output>
     </div>
-    <div class="dr-help">Extra time vs. the direct trip — 0 = straight there, 1 = up to 2× longer</div>
+    <div class="slider-ends"><span>straight there</span><span>up to 2× longer</span></div>
   </div>
 
   <div class="dr-control">
     <label class="dr-label" for="dr-adv-i">Adventurousness</label>
     <div id="dr-adv" class="dr-slider">
-      <input type="range" id="dr-adv-i" min="0" max="1" step="0.05" value="0.3">
+      <input type="range" id="dr-adv-i" min="0" max="1" step="0.05" value="0.3"
+             aria-label="Adventurousness">
       <output id="dr-adv-o">0.3</output>
     </div>
-    <div class="dr-help">Low = well-known places · high = hidden gems</div>
+    <div class="slider-ends"><span>well-known</span><span>hidden gems</span></div>
   </div>
 
   <details class="dr-collapse">
-    <summary>Manual taste (used only when Vibe and saved profile are both empty)</summary>
+    <summary>Manual taste <span class="opt-tag">optional</span></summary>
     <div class="collapse-body">
+      <div class="dr-help" style="margin:0 0 10px;">Only used when Vibe and your saved
+        profile are both empty.</div>
       <div class="dr-control">
         <label class="dr-label" for="dr-green-i">Prefer green</label>
         <div id="dr-green" class="dr-slider green">
-          <input type="range" id="dr-green-i" min="0" max="1" step="0.05" value="0.5">
+          <input type="range" id="dr-green-i" min="0" max="1" step="0.05" value="0.5"
+                 aria-label="Prefer green">
           <output id="dr-green-o">0.5</output>
         </div>
       </div>
-      <div class="dr-control">
+      <div class="dr-control" style="margin-bottom:0;">
         <label class="dr-label" for="dr-quiet-i">Prefer quiet</label>
         <div id="dr-quiet" class="dr-slider green">
-          <input type="range" id="dr-quiet-i" min="0" max="1" step="0.05" value="0.5">
+          <input type="range" id="dr-quiet-i" min="0" max="1" step="0.05" value="0.5"
+                 aria-label="Prefer quiet">
           <output id="dr-quiet-o">0.5</output>
         </div>
       </div>
     </div>
   </details>
 
-  <div class="dr-cta-wrap">
-    <div id="dr-plan"><button type="button" id="dr-plan-btn">Plan route</button></div>
-  </div>
-
   <details class="dr-collapse">
-    <summary>⭐ My taste profile (saved on this device)</summary>
+    <summary>⭐ My taste profile <span class="opt-tag">saved on this device</span></summary>
     <div class="collapse-body">
       <label class="dr-label" for="dr-profile-text">Standing preferences</label>
       <input type="text" id="dr-profile-text" class="dr-field"
              placeholder="e.g. 'I always love bookshops, gardens, and old churches'">
-      <div class="dr-row" style="margin-top:8px;">
+      <div class="dr-row" style="margin-top:10px;">
         <button type="button" id="dr-save">Save</button>
         <button type="button" id="dr-clear">Clear</button>
       </div>
@@ -284,6 +407,12 @@ def _left_panel() -> str:
       <button type="button" class="dr-star" id="dr-save-places">⭐ Save this route's places</button>
     </div>
   </details>
+  </div>
+
+  <div class="dr-cta-wrap">
+    <div id="dr-plan"><button type="button" id="dr-plan-btn">Plan my route →</button></div>
+    <div class="cta-hint">Reads your vibe · threads a detour · writes the itinerary</div>
+  </div>
 </aside>
 """
 
@@ -315,6 +444,15 @@ def index_html() -> str:
     </div>
     <div class="route-summary-bar"><div id="dr-summary"></div></div>
     <div class="itinerary-panel">
+      <div id="dr-onboard" class="onboard">
+        <div class="ob-emoji">🥐</div>
+        <div>
+          <h3>Ready when you are.</h3>
+          <p>Pick a vibe (or tap a chip), keep or tweak the Start &amp; Destination, then
+             hit <strong>Plan my route</strong>. I'll thread a detour past places that match —
+             and tell you why each one made the cut.</p>
+        </div>
+      </div>
       <div id="dr-options"></div>
       <div id="dr-nodetour"></div>
       <div id="dr-interp"></div>
@@ -322,7 +460,7 @@ def index_html() -> str:
     </div>
   </main>
 </div>
-<button class="fab" id="fab" aria-label="Open controls">☰</button>
+<button class="fab" id="fab" aria-label="Open route controls">Plan</button>
 
 <script type="module">{_app_js()}</script>
 </body>
@@ -341,16 +479,14 @@ def _loading_inner() -> str:
             f'<div class="lbl">{label}</div></div>'
         )
     stepper = '<div class="stepper">' + "".join(pips) + "</div>"
-    # Reuse the existing stride mascot markup from LOADING_HTML's inner SVG block.
     return f"""
-<div style="text-align:center;">
-  <div style="font-family:'Fredoka',system-ui,sans-serif;font-weight:600;font-size:19px;
+<div style="text-align:center; max-width:540px; padding:0 16px;">
+  <div style="font-family:'Fredoka',system-ui,sans-serif;font-weight:600;font-size:21px;
        color:#2B2620;">Scouting your wander…</div>
+  <div style="font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:#6B6256;
+       margin-top:6px;">reading your vibe · scoring 30,000 places · threading the detour</div>
   {stepper}
 </div>
-<style>
-  @keyframes drBounce {{ 0%,100% {{ transform:translateY(0) }} 50% {{ transform:translateY(-9px) }} }}
-</style>
 """
 
 
@@ -409,14 +545,36 @@ function toast(msg) {
   inp.addEventListener("input", () => out.textContent = (+inp.value).toFixed(2).replace(/\.?0+$/, "") || "0");
 });
 
-/* ---------- mode segmented toggle ---------- */
+/* ---------- mode segmented toggle (mouse + keyboard) ---------- */
 let mode = "walk";
+function pickMode(l) {
+  document.querySelectorAll("#dr-mode label").forEach(x => {
+    x.classList.remove("selected"); x.setAttribute("aria-pressed", "false");
+  });
+  l.classList.add("selected"); l.setAttribute("aria-pressed", "true"); mode = l.dataset.v;
+}
 document.querySelectorAll("#dr-mode label").forEach(l => {
-  l.addEventListener("click", () => {
-    document.querySelectorAll("#dr-mode label").forEach(x => x.classList.remove("selected"));
-    l.classList.add("selected"); mode = l.dataset.v;
+  l.addEventListener("click", () => pickMode(l));
+  l.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickMode(l); }
   });
 });
+
+/* ---------- vibe preset chips (fill the field on click) ---------- */
+const vibeInput = $("dr-vibe");
+function syncVibeChips() {
+  const v = (vibeInput.value || "").trim().toLowerCase();
+  document.querySelectorAll("#dr-vibe-chips .chip").forEach(c =>
+    c.classList.toggle("on", (c.dataset.vibe || "").toLowerCase() === v));
+}
+document.querySelectorAll("#dr-vibe-chips .chip").forEach(c => {
+  c.addEventListener("click", () => {
+    vibeInput.value = c.dataset.vibe || "";
+    syncVibeChips();
+    vibeInput.focus();
+  });
+});
+vibeInput.addEventListener("input", syncVibeChips);
 
 /* ---------- autocomplete combobox (replaces gr.Dropdown) ---------- */
 function wireCombo(inputId, listId) {
@@ -457,12 +615,17 @@ wireCombo("dr-dest", "dr-dest-list");
 /* ---------- 4-step loader (paced to the pipeline phases) ---------- */
 let stepTimer = null;
 function setStep(n) {
-  document.querySelectorAll(".stepper .step").forEach(s =>
-    s.classList.toggle("active", +s.dataset.step <= n));
+  document.querySelectorAll(".stepper .step").forEach(s => {
+    const i = +s.dataset.step;
+    s.classList.toggle("active", i <= n);
+    s.classList.toggle("current", i === n);
+  });
   document.querySelectorAll(".stepper .bar").forEach(b =>
     b.classList.toggle("fill", +b.dataset.bar <= n));
 }
+function hideOnboard() { const o = $("dr-onboard"); if (o) o.style.display = "none"; }
 function startLoading() {
+  hideOnboard();
   $("dr-loading").classList.add("on");
   $("dr-summary").innerHTML = ""; $("dr-itin").innerHTML = "";
   $("dr-interp").innerHTML = ""; $("dr-options").innerHTML = ""; $("dr-nodetour").innerHTML = "";
@@ -472,19 +635,38 @@ function startLoading() {
 function stopLoading() { clearInterval(stepTimer); setStep(3); $("dr-loading").classList.remove("on"); }
 
 /* ---------- render ---------- */
+const REDUCE = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 let lastAlts = [], lastCats = [];
 function renderMap(html) { $("dr-map").innerHTML = '<div class="map-inner">' + html + "</div>"; }
+function enter(el) {
+  if (!el || REDUCE) return;
+  try { el.animate([{ transform: "translateY(10px)", opacity: 0.001 }, { transform: "none", opacity: 1 }],
+    { duration: 420, easing: "cubic-bezier(.34,1.56,.64,1)" }); } catch (e) {}
+}
+// Organic squash-and-pop on tap/click — springy overshoot, settles back.
+function bounce(el) {
+  if (!el || REDUCE) return;
+  try {
+    el.animate(
+      [{ transform: "scale(1)" }, { transform: "scale(.90)" },
+       { transform: "scale(1.06)" }, { transform: "scale(.985)" }, { transform: "scale(1)" }],
+      { duration: 440, easing: "cubic-bezier(.34,1.56,.64,1)" });
+  } catch (e) {}
+}
 function selectAlt(idx) {
   const a = lastAlts[idx]; if (!a) return;
   renderMap(a.map_html);
   $("dr-summary").innerHTML = md(a.summary_md);
   $("dr-itin").innerHTML = md(a.itinerary_md);
+  enter($("dr-summary")); enter($("dr-itin"));
   document.querySelectorAll("#dr-options .opt").forEach((o, i) =>
     o.classList.toggle("selected", i === idx));
 }
 function renderResult(d) {
+  hideOnboard();
   if (d.error) { renderMap(d.map_html); toast("Hmm — " + d.error.split(".")[0] + "."); return; }
   $("dr-interp").innerHTML = md(d.interpretation_md);
+  enter($("dr-interp"));
   if (d.no_detour) {
     renderMap(d.map_html);
     $("dr-summary").innerHTML = md(d.summary_md);
@@ -547,8 +729,34 @@ $("dr-save-places").addEventListener("click", () => {
 });
 
 /* ---------- mobile drawer ---------- */
-$("fab").addEventListener("click", () => $("left-panel").classList.add("open"));
-$("drawer-close").addEventListener("click", () => $("left-panel").classList.remove("open"));
+const openDrawer = () => $("left-panel").classList.add("open");
+const closeDrawer = () => $("left-panel").classList.remove("open");
+$("fab").addEventListener("click", openDrawer);
+$("drawer-close").addEventListener("click", closeDrawer);
 
+/* ---------- organic bounce on interaction (delegated, capture phase) ---------- */
+document.addEventListener("click", (e) => {
+  const el = e.target.closest(
+    "#dr-plan button, .vibe-chips .chip, #dr-mode label, #dr-options .opt, " +
+    ".dr-row button, .dr-star, details.dr-collapse > summary, #fab, .drawer-close");
+  if (el) bounce(el);
+}, true);
+$("drawer-close").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); closeDrawer(); }
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDrawer(); });
+
+/* Enter in any text field plans the route (except while a suggestion list is open). */
+["dr-vibe", "dr-start", "dr-dest"].forEach(id => {
+  const el = $(id); if (!el) return;
+  el.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    const lists = document.querySelectorAll(".combo-list.open");
+    if (lists.length) return;            // let the combo handle its own Enter
+    e.preventDefault(); plan();
+  });
+});
+
+syncVibeChips();
 renderSaved();
 """
