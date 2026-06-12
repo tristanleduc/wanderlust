@@ -21,6 +21,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 from fastapi.responses import HTMLResponse
 from gradio import Server
 
+# ZeroGPU scans for @spaces.GPU functions AT STARTUP — import the module that
+# defines one (cheap: model/torch loading stays lazy inside the function).
+import discoverroute.narrate.llm  # noqa: F401  (registers spaces.GPU)
+
 from discoverroute.pipeline import plan_route
 from discoverroute.ui import map as mapui
 from discoverroute.ui import shell
