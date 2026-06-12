@@ -3,7 +3,7 @@
 Two generators behind one gate:
   * a deterministic **template** — grounded by construction (only ever inserts
     real waypoint names + the start/end labels), the safe default; and
-  * an optional **LLM** (Qwen3.5-9B) that adds voice, used only when it runs
+  * an optional **LLM** (MiniCPM5-1B) that adds voice, used only when it runs
     (GPU/Space) and only if its output passes the zero-hallucination gate.
 
 ``narrate`` always returns text that passes ``verify_grounded`` — the LLM is a
@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import os
 
-from discoverroute import config
 from discoverroute.narrate import grounding
 
 # Phrasing per category for the template. Generic (no external facts) so the only
@@ -61,11 +60,8 @@ def template_narration(plain, discovery, pois, vibe, mode, start_label="",
         name = p.name or f"a {p.category.replace('_', ' ')}"
         reason = _REASON.get(p.category, "a stop worth making")
         verb = _verb(posture.get(p.category, "pass"))
-        state = getattr(p, "open_state", None)
-        live = getattr(p, "live_status", None)  # Google-verified, when present
-        if live is not None:
-            badge = " · 🟢 open now ✓live" if live else " · 🔴 closed right now ✓live"
-        elif state is True:
+        state = getattr(p, "open_state", None)  # OSM opening_hours, when decidable
+        if state is True:
             badge = " · 🟢 open now"
         elif state is False:
             badge = " · 🔴 closed right now"
@@ -98,7 +94,7 @@ def llm_available() -> bool:
 
 
 def narrate(plain, discovery, pois, vibe="", mode="walk", start_label="",
-            end_label="", posture=None) -> tuple[str, bool]:
+            end_label="", posture=None, weights=None) -> tuple[str, bool]:
     """Return (markdown, used_llm). Output is guaranteed grounded."""
     template = template_narration(
         plain, discovery, pois, vibe, mode, start_label, end_label, posture
@@ -106,36 +102,73 @@ def narrate(plain, discovery, pois, vibe="", mode="walk", start_label="",
     if not llm_available():
         return template, False
 
+    import time
+
+    from discoverroute.narrate import trace
+
+    meta = {"vibe": vibe, "mode": mode, "n_stops": len(pois)}
+    t0 = time.time()
     try:
-        text = _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label)
+        text = _llm_narration(plain, discovery, pois, vibe, mode,
+                              start_label, end_label, weights)
         ok, offenders = grounding.verify_grounded(text, pois, start_label, end_label)
+        latency = int((time.time() - t0) * 1000)
         if ok and text.strip():
+            trace.log_trace("narration", meta, {"text": text}, latency,
+                            used_fallback=False)
             return text, True
+        trace.log_trace("narration", meta, {"text": text, "offenders": offenders},
+                        latency, used_fallback=True)
         print(f"[narrate] LLM output rejected by grounding gate; offenders={offenders}",
               flush=True)
     except Exception as exc:  # noqa: BLE001 - never let narration break a route
+        trace.log_trace("narration", meta, {"error": f"{type(exc).__name__}: {exc}"},
+                        int((time.time() - t0) * 1000), used_fallback=True)
         print(f"[narrate] LLM failed ({type(exc).__name__}): {exc}", flush=True)
     return template, False  # fail-closed: ship the grounded template
 
 
-def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label) -> str:
-    """Generate narration with Qwen3.5-9B, constrained to the allowed names."""
-    from discoverroute.narrate.llm import generate
+def _weights_summary(weights) -> str:
+    """Compact 'cafe 0.9, park 0.7' line from the extracted weights, if any."""
+    aff = getattr(weights, "category_affinity", None)
+    if not aff:
+        return ""
+    top = sorted(aff, key=aff.get, reverse=True)[:5]
+    return ", ".join(f"{c.replace('_', ' ')} {aff[c]:.2f}" for c in top)
+
+
+def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
+                   weights=None) -> str:
+    """Generate narration with MiniCPM5-1B, constrained to the allowed names."""
+    from discoverroute.narrate.llm import run_inference
 
     names = [p.name or f"a {p.category.replace('_', ' ')}" for p in pois]
     bullet = "\n".join(
         f"- {n} ({p.category.replace('_', ' ')})" for n, p in zip(names, pois)
     )
     extra = round(discovery.time_min - plain.time_min)
-    prompt = (
-        "You are a warm local guide writing a short itinerary for a "
-        f"{mode} through Paris from {start_label} to {end_label}.\n"
-        f"The traveller's vibe: {vibe or 'open to anything'}.\n"
-        f"The route adds {extra} minutes to pass these real places, in order:\n"
-        f"{bullet}\n\n"
-        "Write 3-5 short sentences. CRITICAL RULES: mention ONLY the place names "
-        "listed above, spelled exactly. Do NOT invent or name any other place, "
-        "landmark, street, or neighbourhood. If unsure, refer to a place by its "
-        "type instead of a name."
+    total_min = round(discovery.time_min + getattr(discovery, "dwell_s", 0.0) / 60.0)
+    weights_line = _weights_summary(weights)
+
+    system = (
+        "You are a Parisian city guide who knows every street. Write a warm, "
+        "specific, first-person itinerary for this walking route. Reference the "
+        "user's stated vibe directly. For each stop, explain in one sentence why "
+        "it matches what they were looking for. Format as markdown with one "
+        "header per stop.\n"
+        "CRITICAL: mention ONLY the place names listed in the prompt, spelled "
+        "exactly. Never invent or name any other place, street, landmark, or "
+        "neighbourhood. If unsure, refer to a place by its type, not a name."
     )
-    return generate(prompt, max_new_tokens=320)
+    user = (
+        f"Vibe: {vibe or 'open to anything'}\n"
+        + (f"Weights extracted: {weights_line}\n" if weights_line else "")
+        + f"Mode: {mode} from {start_label or 'the start'} to "
+        f"{end_label or 'the destination'}\n"
+        f"Ordered stops:\n{bullet}\n"
+        f"Total time: {total_min} minutes (about {extra} minutes of discovery)\n\n"
+        "Write the itinerary."
+    )
+    messages = [{"role": "system", "content": system},
+                {"role": "user", "content": user}]
+    return run_inference(messages, max_new_tokens=600)

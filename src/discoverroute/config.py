@@ -4,6 +4,7 @@ Everything tunable lives here so behaviour is inspectable, not scattered.
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 # --- Paths -------------------------------------------------------------------
@@ -66,8 +67,20 @@ def corridor_halfwidth_m(budget: float) -> float:
 EMBED_MODEL = "BAAI/bge-small-en-v1.5"
 # bge-v1.5 retrieval instruction, prepended to the query (the vibe) only.
 EMBED_QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
-# Generative model for posture interpretation + narration (optional; ≤32B, ZeroGPU).
-LLM_MODEL = "Qwen/Qwen3.5-9B"
+# Generative model for vibe→weights extraction + narration. A 1B in-Space model
+# (Tiny Titan ≤4B; weights pulled from the Hub and run on ZeroGPU). Standard
+# LlamaForCausalLM architecture — no custom kernels.
+LLM_MODEL = "openbmb/MiniCPM5-1B"
+
+# --- Trace logging (Open Trace) ----------------------------------------------
+# Every inference call logs a row locally to logs/traces.jsonl; when a write
+# token is present, rows are ALSO pushed (async, non-blocking) to TRACE_REPO.
+# No token => local-only (graceful stub; nothing blocks).
+HF_TOKEN = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+TRACE_REPO = os.environ.get(
+    "DISCOVERROUTE_TRACE_REPO", "build-small-hackathon/discoverroute-traces"
+)
+
 # Affinity floor: the least-matching category still keeps this much interest so
 # the route can explore a little; the best-matching category maps to 1.0.
 AFFINITY_FLOOR = 0.15

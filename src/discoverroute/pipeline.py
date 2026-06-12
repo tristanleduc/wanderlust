@@ -56,6 +56,43 @@ def plan_route(
     profile: dict | None = None,
     n_alternatives: int = 1,
 ) -> PlanResult:
+    """Plan a route + log one plan-level trace row. Never raises for user errors."""
+    result = _plan_route_impl(
+        start_query, dest_query, mode, budget, vibe, adventurousness,
+        prefer_green, prefer_quiet, profile, n_alternatives,
+    )
+    try:  # one Open-Trace / Field-Notes row per call; never break a route
+        from discoverroute.interpret.affinity import source_of
+        from discoverroute.narrate import trace
+        trace.log_plan(
+            {"start": start_query, "dest": dest_query, "mode": mode,
+             "budget": budget, "vibe": vibe, "adventurousness": adventurousness,
+             "weights_source": source_of(vibe) if (vibe or "").strip()
+             else ("profile" if profile else "manual")},
+            {"error": result.error,
+             "n_pois_selected": len(result.pois),
+             "n_alternatives": len(result.alternatives),
+             "plain_min": round(result.plain.time_min, 1) if result.plain else None,
+             "discovery_min": (round(result.discovery.time_min, 1)
+                               if result.discovery else None)},
+        )
+    except Exception:  # noqa: BLE001
+        pass
+    return result
+
+
+def _plan_route_impl(
+    start_query: str,
+    dest_query: str,
+    mode: str = config.DEFAULT_MODE,
+    budget: float = config.DEFAULT_BUDGET,
+    vibe: str = "",
+    adventurousness: float = config.DEFAULT_ADVENTUROUSNESS,
+    prefer_green: float = 0.0,
+    prefer_quiet: float = 0.0,
+    profile: dict | None = None,
+    n_alternatives: int = 1,
+) -> PlanResult:
     """Plan a route. Returns a PlanResult; never raises for user-facing errors."""
     try:
         graph = g.load_graph()
@@ -120,13 +157,10 @@ def plan_route(
             if discovery is None or not selected:
                 break
             used_ids.update(p.osm_id for p in selected)
-            # Optional live verification of the chosen stops (no-op without key).
-            from discoverroute.enrich import google_places
-            google_places.verify_stops(selected)
             itinerary_md, _ = narrate(
                 plain, discovery, selected, vibe=vibe, mode=mode,
                 start_label=start_query.strip(), end_label=dest_query.strip(),
-                posture=posture,
+                posture=posture, weights=weights,
             )
             alternatives.append(Alternative(
                 discovery=discovery, pois=selected,

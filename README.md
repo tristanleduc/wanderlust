@@ -4,7 +4,7 @@ emoji: 🗺️
 colorFrom: green
 colorTo: blue
 sdk: gradio
-sdk_version: 6.17.3
+sdk_version: 6.18.0
 app_file: app.py
 pinned: false
 license: mit
@@ -41,7 +41,8 @@ for the per-brick build log, `FIELD_NOTES.md` for the build story, and
   viewpoint + a bookshop over five cafés, within budget.
 - **Adventurousness**: low → well-documented places; high → injects hidden gems.
 - **Grounded narration**: an itinerary that names only real waypoints, behind a
-  hard zero-hallucination gate (optional Qwen3.5-9B enhancer, gated by the same).
+  hard zero-hallucination gate (optional in-Space MiniCPM5-1B enhancer — a ≤4B
+  Tiny Titan on ZeroGPU — gated by the same).
 - **Alternative routes**: up to three genuinely distinct options.
 - **Persistent taste profile**: standing preferences + saved places, per device,
   blended with each trip's mood. No accounts.

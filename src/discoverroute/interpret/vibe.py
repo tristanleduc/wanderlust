@@ -45,10 +45,10 @@ def _contains(text: str, cues) -> bool:
 
 def interpret(vibe: str, adventurousness: float = config.DEFAULT_ADVENTUROUSNESS,
               budget: float | None = None) -> Interpretation:
-    from discoverroute.interpret import embed  # lazy: avoids loading the model unless used
+    from discoverroute.interpret.affinity import resolve_affinity  # lazy: model only if used
 
     text = (vibe or "").strip().lower()
-    affinity = embed.vibe_to_affinity(vibe)
+    affinity, _source = resolve_affinity(vibe)
     weights = Weights(category_affinity=affinity, w_category=1.0)
 
     # (b) posture: start from category defaults, then let the mood tilt it.
