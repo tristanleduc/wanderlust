@@ -28,6 +28,14 @@ _LOW_BUDGET_CUES = ("quick", "short", "direct", "fast", "hurry", "straight")
 _HIGH_BUDGET_CUES = ("long", "scenic", "leisurely", "all day", "all-day",
                      "explore", "meander", "take your time", "no rush", "epic")
 
+# Discovery cues: the user wants the obscure, NOT famous sights. The "attraction"
+# category ("a famous landmark or major sight") is the semantic opposite, yet it
+# embeds close to "hidden gems" — so suppress it and bump adventurousness
+# (which surfaces under-documented POIs) when these appear.
+_HIDDEN_CUES = ("hidden", "off the beaten", "off-the-beaten", "secret", "local gem",
+                "hidden gem", "lesser known", "lesser-known", "undiscovered",
+                "underrated", "non-touristy", "non touristy", "like a local")
+
 
 @dataclass
 class Interpretation:
@@ -39,6 +47,7 @@ class Interpretation:
     top_categories: list[str] = field(default_factory=list)
     confidence: float = 1.0        # best raw cosine to a category gloss
     weak: bool = False             # True => out-of-vocabulary / weak match
+    adventurousness: float = config.DEFAULT_ADVENTUROUSNESS  # possibly cue-boosted
 
 
 def _contains(text: str, cues) -> bool:
@@ -51,6 +60,12 @@ def interpret(vibe: str, adventurousness: float = config.DEFAULT_ADVENTUROUSNESS
 
     text = (vibe or "").strip().lower()
     affinity, _source = resolve_affinity(vibe)
+    # Discovery intent: drop "famous attraction" (opposite of "hidden") and lift
+    # adventurousness so the route favours under-documented places. Copy first —
+    # resolve_affinity is cached and returns a shared dict.
+    if _contains(text, _HIDDEN_CUES):
+        affinity = {**affinity, "attraction": 0.0}
+        adventurousness = max(adventurousness, 0.8)
     weights = Weights(category_affinity=affinity, w_category=1.0)
 
     # (b) posture: start from category defaults, then let the mood tilt it.
@@ -79,7 +94,8 @@ def interpret(vibe: str, adventurousness: float = config.DEFAULT_ADVENTUROUSNESS
     weak = bool(text) and confidence < config.WEAK_MATCH_SIMILARITY
     explanation = _explain(vibe, top, affinity, posture, budget_hint, weak)
     return Interpretation(affinity, weights, posture, budget_hint, explanation, top,
-                          confidence=confidence, weak=weak)
+                          confidence=confidence, weak=weak,
+                          adventurousness=adventurousness)
 
 
 def _explain(vibe, top, affinity, posture, budget_hint, weak=False) -> str:

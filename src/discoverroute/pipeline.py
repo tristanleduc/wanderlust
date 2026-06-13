@@ -115,6 +115,7 @@ def _plan_route_impl(
     from discoverroute.data import taxonomy
     interp_md = ""
     weak_match = False
+    top_requested = None  # the #1 category the vibe asked for (for sparse feedback)
     posture = {c: taxonomy.posture(c) for c in taxonomy.CATEGORIES}
     has_vibe = bool((vibe or "").strip())
     has_profile = bool(
@@ -130,6 +131,9 @@ def _plan_route_impl(
             posture = interp.posture
             interp_md = interp.explanation
             weak_match = interp.weak
+            adventurousness = interp.adventurousness  # may be cue-boosted (e.g. "hidden gems")
+            if not weak_match and interp.top_categories:
+                top_requested = interp.top_categories[0]
             # An explicit pace word in the vibe ("quick", "all day") nudges the
             # budget — BUT never resurrects a detour the user explicitly disabled
             # by zeroing the slider (P0-3: budget 0 == plain route, slider wins).
@@ -200,6 +204,14 @@ def _plan_route_impl(
         )
 
     primary = alternatives[0]
+    # Honest feedback when the user's #1 requested category isn't on this corridor
+    # (e.g. "jazz and live music" → no music venues between A and B): say so rather
+    # than silently labelling churches "a match".
+    if top_requested and top_requested not in {p.category for p in primary.pois}:
+        nice = taxonomy.pretty_category(top_requested)
+        interp_md += (f"\n\n_Heads up: I couldn't find {nice} spots on this stretch — "
+                      f"the route shows the nearest things you asked for instead._")
+
     return PlanResult(
         plain=plain, discovery=primary.discovery, pois=primary.pois,
         start=start, end=end,
