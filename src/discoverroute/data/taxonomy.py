@@ -124,7 +124,9 @@ PRETTY_CATEGORY: dict[str, str] = {
     "bookshop": "bookshop",
     "theatre_cinema": "theatre",
     "cafe": "café",
-    "bakery_food_shop": "bakery",
+    "bakery_food_shop": "food shop",  # bundles bakery/patisserie/wine/cheese/deli —
+    #                                   "food shop" is never a false label (a wine
+    #                                   shop is not "a bakery")
     "restaurant": "restaurant",
     "bar_pub": "bar",
     "market": "market",
