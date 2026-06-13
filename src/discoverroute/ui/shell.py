@@ -88,7 +88,9 @@ body{ font-family:'DM Sans',ui-sans-serif,system-ui,sans-serif; color:var(--dr-i
 .combo{ position:relative; }
 .combo-list{ position:absolute; z-index:60; left:0; right:0; top:calc(100% + 5px);
   background:var(--dr-paper); border:1.5px solid var(--dr-line); border-radius:16px;
-  box-shadow:0 18px 38px -16px rgba(43,38,32,.45); overflow:hidden; display:none; padding:5px; }
+  box-shadow:0 18px 38px -16px rgba(43,38,32,.45); display:none; padding:5px;
+  max-height:min(46vh,300px); overflow-y:auto; overflow-x:hidden;
+  overscroll-behavior:contain; }
 .combo-list.open{ display:block; animation:drPop .16s var(--dr-spring); }
 @keyframes drPop{ from{ transform:translateY(-4px); opacity:.4; } to{ transform:none; opacity:1; } }
 .combo-list div{ padding:9px 11px; font-size:13.5px; cursor:pointer; border-radius:11px;
@@ -270,6 +272,11 @@ details.dr-collapse .collapse-body{ padding:13px 15px; }
     transform:translateY(110%); transition:transform .32s var(--dr-spring);
     padding-top:8px; }
   .left-panel.open{ transform:translateY(0); }
+  /* denser drawer so more of the menu is visible in the cramped mobile height */
+  .panel-scroll{ padding:12px 16px 8px; }
+  .dr-control{ margin-bottom:12px; }
+  .brand{ margin-bottom:10px; }
+  .vibe-chips{ gap:7px; }
   .fab{ display:grid; place-items:center; position:fixed; right:18px; bottom:18px; z-index:210;
     width:62px; height:62px; border-radius:50%; border:none; cursor:pointer;
     background:var(--dr-coral); color:#fff; font-size:15px; font-family:'Fredoka',sans-serif;
@@ -803,6 +810,35 @@ const openDrawer = () => $("left-panel").classList.add("open");
 const closeDrawer = () => $("left-panel").classList.remove("open");
 $("fab").addEventListener("click", openDrawer);
 $("drawer-close").addEventListener("click", closeDrawer);
+
+/* Keep the bottom drawer usable when the on-screen keyboard opens. On phones the
+   keyboard shrinks the *visual* viewport (and on iOS overlays a fixed element)
+   so a dvh-sized drawer gets crushed or hidden. We size the drawer to the
+   visible area above the keyboard and scroll the focused field into view. */
+(function () {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const panel = $("left-panel");
+  const fit = () => {
+    if (window.innerWidth > 768 || !panel.classList.contains("open")) {
+      panel.style.maxHeight = ""; return;          // desktop / closed: CSS rules
+    }
+    panel.style.maxHeight = Math.round(vv.height * 0.94) + "px";
+  };
+  vv.addEventListener("resize", fit);
+  vv.addEventListener("scroll", fit);
+  document.addEventListener("focusin", (e) => {
+    if (window.innerWidth > 768) return;
+    const field = e.target.closest && e.target.closest(".left-panel input, .left-panel textarea");
+    if (!field) return;
+    openDrawer(); fit();
+    // let the keyboard animate in, then center the field within the scroll area
+    setTimeout(() => field.scrollIntoView({ block: "center", behavior: "smooth" }), 280);
+  });
+  document.addEventListener("focusout", () => {
+    if (window.innerWidth <= 768) setTimeout(fit, 100);
+  });
+})();
 
 /* ---------- floating results sheet (collapsible overlay) ---------- */
 function showSheet() { const s = $("results-sheet"); if (s) { s.hidden = false; s.classList.remove("collapsed"); } }
