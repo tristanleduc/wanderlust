@@ -344,7 +344,8 @@ def _left_panel() -> str:
              value="Place de la République, Paris">
     </div>
     <div class="combo-list" id="dr-start-list"></div>
-    <div class="dr-help">Try a landmark or place name — not a street address.</div>
+    <div class="dr-help">📍 Paris · London · Barcelona · New York — try a landmark
+      (e.g. "British Museum, London"), not a street address.</div>
   </div>
 
   <div class="dr-control combo">

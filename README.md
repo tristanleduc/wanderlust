@@ -11,11 +11,11 @@ pinned: true
 license: apache-2.0
 short_description: A-to-B routes through places you'll love
 tags:
-  - backyard-ai-track
+  - thousand-token-wood-track
+  - badge-off-the-grid
   - badge-off-brand
   - badge-tiny-titan
-  - badge-best-agent
-  - badge-best-demo
+  - badge-field-notes
   - openbmb
 ---
 
@@ -31,7 +31,8 @@ going and the kind of moment you're after — "a slow Sunday-morning kind of wal
 one is on your path. Same destination. A walk you'll remember instead of one you'll forget.
 
 > One-liner: **WanderLust turns any walk from A to B into a personal discovery — routing
-> you through places that match your taste, not just the fastest path.** Single city today: **Paris**.
+> you through places that match your taste, not just the fastest path.** Cities: **Paris,
+> London, Barcelona, New York** — all routed **fully offline** (no cloud APIs at request time).
 
 ---
 
@@ -64,8 +65,9 @@ the experience feel like it read your mind.)
   weights (JSON), and route → first-person itinerary narration.
 - **ZeroGPU:** the model runs **inside the Space** on HF ZeroGPU via `@spaces.GPU`,
   weights pulled from the Hub — no external inference API, nothing leaves the Space.
-- **OpenStreetMap + OSMnx:** the Paris walking/biking graph and ~30k POIs, pre-built and
-  cached offline (Git LFS) so the demo city is instant.
+- **OpenStreetMap + OSMnx:** walking/biking graphs and POIs for **Paris, London,
+  Barcelona and New York**, pre-built and cached offline (Git LFS) so every city is
+  instant — and routes with **no cloud API calls at request time** (Off the Grid).
 - **Routing — classical, exact:** a `networkx` + SciPy multi-source Dijkstra travel-time
   matrix, solved by a custom **orienteering** (prize-collecting TSP) heuristic with
   submodular diversity — so you get a park + a viewpoint + a bookshop, not five cafés.
@@ -117,13 +119,16 @@ story, `PROGRESS.md` for the per-feature log.
 
 ## Architecture
 
-**Offline (built once for Paris, cached):** OSM extract → walk/bike routing graph →
-POIs with feature priors + confidence.
+**Offline (built once per city, cached):** OSM extract → walk/bike routing graph →
+POIs with feature priors + confidence. Paris ships full-city; London, Barcelona and
+New York are baked as walkable cores (`python -m discoverroute.data.build_city`).
 
-**Runtime (per request):** interpret vibe → score corridor POIs → solve the detour
-(orienteering) → trace a real polyline → narrate + overlay on the map.
+**Runtime (per request):** pick the city → interpret vibe → score corridor POIs → solve
+the detour (orienteering) → trace a real polyline → narrate + overlay on the map.
 
 The model is load-bearing only in **interpretation and narration**; routing is pure
-classical algorithms. Geocoding is local-first — named Paris places resolve against the
-cached POI table with no network call (`DISCOVERROUTE_OFFLINE=1` forbids the Nominatim
-fallback entirely). Map data © OpenStreetMap contributors (ODbL).
+classical algorithms. Geocoding is local-first — named places resolve against the cached
+POI index (Paris + every pre-baked city) with no network call. With
+`DISCOVERROUTE_OFFLINE=1` (the deployed config) there are **zero cloud API calls at
+request time** — routing is limited to the pre-baked cities. Map data © OpenStreetMap
+contributors (ODbL).
