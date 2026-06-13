@@ -111,6 +111,10 @@ TOP_AFFINITY_CATEGORIES = 6
 # architecture" 0.51, nonsense ~0.49). We still route, but the narration says so
 # honestly instead of claiming "a match for your vibe".
 WEAK_MATCH_SIMILARITY = 0.55
+# For "hidden gems"-style vibes, exclude well-documented (famous) POIs: a place
+# this richly tagged isn't off the beaten path. Confidence is the tag-richness
+# proxy; Notre Dame etc. sit at ~1.0. (Only applied when a discovery cue fires.)
+FAMOUS_CONFIDENCE = 0.85
 # Below this cosine-similarity span across categories, a vibe is treated as
 # off-domain/neutral rather than amplified into false preferences. Measured
 # (bge-small, 16-vibe battery): gibberish "asdfqwer" spans 0.081; the LOWEST

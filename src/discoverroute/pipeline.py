@@ -115,6 +115,7 @@ def _plan_route_impl(
     from discoverroute.data import taxonomy
     interp_md = ""
     weak_match = False
+    exclude_famous = False  # discovery-cue vibes drop well-documented famous sights
     top_requested = None  # the #1 category the vibe asked for (for sparse feedback)
     posture = {c: taxonomy.posture(c) for c in taxonomy.CATEGORIES}
     has_vibe = bool((vibe or "").strip())
@@ -131,6 +132,7 @@ def _plan_route_impl(
             interp_md = interp.explanation
             weak_match = interp.weak
             adventurousness = interp.adventurousness  # may be cue-boosted (e.g. "hidden gems")
+            exclude_famous = interp.exclude_famous
             if not weak_match and interp.top_categories:
                 top_requested = interp.top_categories[0]
             # Use the interpreter's OWN affinity (it carries discovery-cue
@@ -168,7 +170,7 @@ def _plan_route_impl(
     try:
         shortlist, matrix, time_fn = _prepare_discovery(
             graph, start, end, plain, mode, budget, weights, adventurousness,
-            posture=posture)
+            posture=posture, exclude_famous=exclude_famous)
         for _ in range(max(1, n_alternatives)):
             if shortlist is None:
                 break
@@ -227,7 +229,7 @@ def _plan_route_impl(
 
 
 def _prepare_discovery(graph, start, end, plain, mode, budget, weights, adventurousness,
-                       posture=None):
+                       posture=None, exclude_famous=False):
     """Corridor → score → shortlist → real travel matrix. Done ONCE per request.
 
     The expensive step is the matrix (cutoff-bounded multi-source Dijkstra), so we
@@ -238,13 +240,34 @@ def _prepare_discovery(graph, start, end, plain, mode, budget, weights, adventur
     candidates = poimod.corridor_pois(plain.coords, budget)
     if not candidates:
         return None, None, None
+    # Discovery vibes ("hidden gems"): drop famous, well-documented sights so the
+    # route stays genuinely off the beaten path (Notre Dame etc. enter via several
+    # categories, so filter by tag-richness, not category).
+    if exclude_famous:
+        kept = [p for p in candidates if p.confidence < config.FAMOUS_CONFIDENCE]
+        if kept:
+            candidates = kept
     scoring.score_pois(candidates, weights, adventurousness)
     # Open-now awareness: demote places that are closed right now (heavily for
     # stop-at categories, mildly for pass-by; unknown hours left untouched).
     from discoverroute.routing import hours
     hours.apply_open_now(candidates, posture)
-    shortlist = sorted((p for p in candidates if p.score > 0),
-                       key=lambda p: p.score, reverse=True)[: config.SOLVER_CANDIDATES]
+    ranked = sorted((p for p in candidates if p.score > 0),
+                    key=lambda p: p.score, reverse=True)
+    # Dedup within a route: the same OSM place can appear as multiple rows
+    # (multipolygon centroids) or two distinct ids can share a name — either way
+    # a route must never tell you to visit the same spot twice. Keep first (best).
+    seen_id, seen_name, shortlist = set(), set(), []
+    for p in ranked:
+        nkey = (p.name or "").strip().lower()
+        if p.osm_id in seen_id or (nkey and nkey in seen_name):
+            continue
+        seen_id.add(p.osm_id)
+        if nkey:
+            seen_name.add(nkey)
+        shortlist.append(p)
+        if len(shortlist) >= config.SOLVER_CANDIDATES:
+            break
     if not shortlist:
         return None, None, None
 

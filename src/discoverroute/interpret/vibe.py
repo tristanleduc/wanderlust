@@ -48,6 +48,7 @@ class Interpretation:
     confidence: float = 1.0        # best raw cosine to a category gloss
     weak: bool = False             # True => out-of-vocabulary / weak match
     adventurousness: float = config.DEFAULT_ADVENTUROUSNESS  # possibly cue-boosted
+    exclude_famous: bool = False   # discovery cue => drop well-documented sights
 
 
 def _contains(text: str, cues) -> bool:
@@ -63,7 +64,8 @@ def interpret(vibe: str, adventurousness: float = config.DEFAULT_ADVENTUROUSNESS
     # Discovery intent: drop "famous attraction" (opposite of "hidden") and lift
     # adventurousness so the route favours under-documented places. Copy first —
     # resolve_affinity is cached and returns a shared dict.
-    if _contains(text, _HIDDEN_CUES):
+    hidden = _contains(text, _HIDDEN_CUES)
+    if hidden:
         affinity = {**affinity, "attraction": 0.0}
         adventurousness = max(adventurousness, 0.8)
     weights = Weights(category_affinity=affinity, w_category=1.0)
@@ -95,7 +97,7 @@ def interpret(vibe: str, adventurousness: float = config.DEFAULT_ADVENTUROUSNESS
     explanation = _explain(vibe, top, affinity, posture, budget_hint, weak)
     return Interpretation(affinity, weights, posture, budget_hint, explanation, top,
                           confidence=confidence, weak=weak,
-                          adventurousness=adventurousness)
+                          adventurousness=adventurousness, exclude_famous=hidden)
 
 
 def _explain(vibe, top, affinity, posture, budget_hint, weak=False) -> str:

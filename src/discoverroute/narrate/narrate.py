@@ -79,13 +79,12 @@ def template_narration(plain, discovery, pois, vibe, mode, start_label="",
         f"**{n} {place_word}** between {start_label or 'the start'} and "
         f"{end_label or 'the destination'}:\n"
     )
-    # The categories the vibe leans on most — used to tie a stop back to the vibe.
-    # A weak vibe has no real matches, so don't tag stops "a match for your vibe".
-    top_cats: set[str] = set()
-    aff = getattr(weights, "category_affinity", None)
-    if v and aff and not weak:
-        top_cats = set(sorted(aff, key=aff.get, reverse=True)[:3])
-
+    # NOTE: we deliberately do NOT tag stops "a match for your vibe". Adversarial
+    # review showed that claim overreaches whenever a route backfills with a
+    # lower-ranked category (a bakery on a wine vibe, a church on a jazz vibe) —
+    # the affinity model can't guarantee per-stop relevance, so the blanket claim
+    # reads as a lie. Each stop's own reason text conveys its appeal honestly; the
+    # interpretation panel already shows how the vibe was read.
     lines = [lead]
     prev_cat = None
     for i, p in enumerate(pois, 1):
@@ -96,7 +95,7 @@ def template_narration(plain, discovery, pois, vibe, mode, start_label="",
             reason = _REASON.get(p.category, "a spot worth a look")
         prev_cat = p.category
         verb = _verb(posture.get(p.category, "pass"))
-        tie = " — a match for your vibe" if (v and p.category in top_cats) else ""
+        tie = ""
         badge = _hours_badge(p, posture.get(p.category, "pass"))
         lines.append(f"{i}. **{label}** — {verb.lower()} for {reason}{tie}.{badge}")
     lines.append(
