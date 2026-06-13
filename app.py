@@ -10,9 +10,20 @@ Run locally:  python app.py
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
+
+# The package lives in src/ and is not pip-installed on the Space container —
+# put it on the path before any discoverroute import (also makes plain
+# `python app.py` work locally without PYTHONPATH).
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 from fastapi.responses import HTMLResponse
 from gradio import Server
+
+# ZeroGPU scans for @spaces.GPU functions AT STARTUP — import the module that
+# defines one (cheap: model/torch loading stays lazy inside the function).
+import discoverroute.narrate.llm  # noqa: F401  (registers spaces.GPU)
 
 from discoverroute.pipeline import plan_route
 from discoverroute.ui import map as mapui
