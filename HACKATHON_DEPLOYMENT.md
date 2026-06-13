@@ -59,9 +59,11 @@ git push -u origin main
 
 **In Space Settings:**
 
-1. **Hardware:** Select **ZeroGPU** (for optional Qwen3.5-9B narration LLM)
-   - The app works CPU-only with template narration (no GPU needed)
-   - GPU enables the enhanced generative narration (optional polish)
+1. **Hardware:** Select **ZeroGPU** (for the in-Space MiniCPM5-1B model — a ≤4B
+   Tiny Titan, weights pulled from the HF Hub)
+   - The app works CPU-only with the keyword/embedding vibe path + template
+     narration (no GPU needed)
+   - GPU enables the generative vibe→weights (Call 1) and narration (Call 2)
 
 2. **Environment Variables (for "Off the Grid" badge):**
    ```
@@ -179,7 +181,7 @@ Go to https://huggingface.co/build-small-hackathon and submit:
 ## Post-Launch
 
 - Monitor Space logs for errors (Settings → Logs)
-- If narration LLM is enabled (ZeroGPU), watch for Qwen3.5-9B load/unload messages
+- If the LLM is enabled (ZeroGPU), watch for MiniCPM5-1B load/unload messages
 - Share the build story on Twitter / Hacker News / forums (Field Notes badge)
 
 **All code is ready. User only needs to: auth with HF → run the git push commands above → submit.**

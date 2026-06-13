@@ -101,8 +101,13 @@ def geocode_point(query: str) -> tuple[float, float]:
     # Try "lat, lon" first, then the offline POI-name index (no network needed).
     latlon = _try_parse_latlon(query)
     if latlon is None:
-        from discoverroute.routing.geocode import local_geocode
+        from discoverroute.routing.geocode import is_world_place, local_geocode
 
+        if is_world_place(query):
+            raise RouteError(
+                f"{query!r} looks like a place outside Paris — DiscoverRoute "
+                "covers Paris only. Try a Paris landmark (e.g. 'Louvre')."
+            )
         latlon = local_geocode(query)
     if latlon is None:
         if os.environ.get(config.OFFLINE_ENV_VAR) == "1":

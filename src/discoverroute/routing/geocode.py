@@ -50,6 +50,30 @@ def _strip_trailing_geo(norm: str) -> str:
     return " ".join(tokens)
 
 
+# Obvious non-Paris places that would otherwise namesake-match a Paris POI
+# (e.g. a restaurant literally named "Tokyo"), silently producing a fake route.
+# Checked before name matching so they fail with an honest "Paris only" message.
+WORLD_PLACES = frozenset({
+    "london", "tokyo", "new york", "newyork", "berlin", "rome", "madrid",
+    "barcelona", "amsterdam", "brussels", "lisbon", "vienna", "prague",
+    "budapest", "moscow", "beijing", "shanghai", "hong kong", "seoul",
+    "bangkok", "singapore", "sydney", "melbourne", "dubai", "mumbai", "delhi",
+    "new delhi", "cairo", "istanbul", "athens", "dublin", "edinburgh",
+    "manchester", "los angeles", "san francisco", "chicago", "boston", "miami",
+    "toronto", "montreal", "mexico city", "rio de janeiro", "sao paulo",
+    "buenos aires", "kyoto", "osaka", "milan", "venice", "florence", "naples",
+    "munich", "frankfurt", "hamburg", "zurich", "geneva", "oslo", "stockholm",
+    "copenhagen", "helsinki", "warsaw", "kyiv", "kiev",
+    "china", "japan", "america", "usa", "england", "germany", "italy", "spain",
+    "russia", "india", "europe", "france",
+})
+
+
+def is_world_place(query: str) -> bool:
+    """True if the query is plainly a non-Paris city/country (denylist)."""
+    return _strip_trailing_geo(_normalize(query or "")) in WORLD_PLACES
+
+
 @functools.lru_cache(maxsize=1)
 def _index() -> tuple[dict[str, _Entry], list[_Entry]]:
     """Lazy name index: exact normalised-name map + full entry list.

@@ -40,28 +40,31 @@ app, source, tests, and `data/` artifacts are pushed.
 
 ## Enable the narration LLM (optional)
 
-The app runs CPU-only out of the box (grounded **template** narration). To turn on
-the Qwen3.5-9B generative narration:
+The app runs CPU-only out of the box (grounded **template** narration + keyword/
+embedding vibe weights). To turn on the in-Space MiniCPM5-1B generative path:
 
 1. In the Space **Settings → Hardware**, select a **ZeroGPU** tier.
-2. The `@spaces.GPU` decorator on `narrate/llm.py::generate` activates automatically.
-   `narrate()` only calls the LLM when a GPU is present, and **falls back to the
-   grounded template if the LLM output fails the zero-hallucination gate** — so the
-   0% gate holds either way.
+2. The `@spaces.GPU` decorator on `narrate/llm.py::run_inference` activates
+   automatically. Vibe→weights (Call 1) and narration (Call 2) only call the model
+   when a GPU is present, and **fall back to the keyword matcher / grounded template
+   if the model is absent or its output fails validation / the zero-hallucination
+   gate** — so the app is correct either way. Weights are pulled from the HF Hub.
 
 To force the LLM on/off regardless of hardware, set the Space variable
 `DISCOVERROUTE_USE_LLM` to `1` / `0`.
 
-## Optional: live Google verification of the final stops
+## Off the Grid — no external APIs
 
-Set the Space **secret** `GOOGLE_MAPS_API_KEY` (Google Cloud → APIs → Places API
-(New) enabled, billing on) and each planned route live-verifies its ~8 chosen
-stops: permanently-closed detection, open-right-now, rating. Notes:
-- Hours fields bill at the Enterprise SKU → ~1,000 free lookups/month ≈ 125
-  routes; ~$0.15/route beyond. Only the final stops are queried, never stored
-  (Google ToS), and OSM remains the routing/candidate base.
-- Without the key the app is fully offline: open-now still works from OSM
-  `opening_hours` tags (~31% of POIs carry them).
+DiscoverRoute is OSM-only: there is **no** Google Places (or any cloud) dependency.
+Open-now comes from OSM `opening_hours` tags (~31% of POIs carry them); the 1B model
+runs inside the Space on ZeroGPU. Nothing leaves the Space at request time.
+
+## Open Trace — optional inference trace dataset
+
+Every model call logs a row to `logs/traces.jsonl`. To also publish them to an HF
+Dataset, set the Space **secret** `HF_TOKEN` (write scope) — rows are then pushed
+async to `DISCOVERROUTE_TRACE_REPO` (default `build-small-hackathon/discoverroute-traces`).
+Without the token, logging stays local (graceful no-op).
 
 ## Refreshing the data snapshot
 

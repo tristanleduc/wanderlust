@@ -45,10 +45,10 @@ def _contains(text: str, cues) -> bool:
 
 def interpret(vibe: str, adventurousness: float = config.DEFAULT_ADVENTUROUSNESS,
               budget: float | None = None) -> Interpretation:
-    from discoverroute.interpret import embed  # lazy: avoids loading the model unless used
+    from discoverroute.interpret.affinity import resolve_affinity  # lazy: model only if used
 
     text = (vibe or "").strip().lower()
-    affinity = embed.vibe_to_affinity(vibe)
+    affinity, _source = resolve_affinity(vibe)
     weights = Weights(category_affinity=affinity, w_category=1.0)
 
     # (b) posture: start from category defaults, then let the mood tilt it.
@@ -75,6 +75,12 @@ def interpret(vibe: str, adventurousness: float = config.DEFAULT_ADVENTUROUSNESS
 def _explain(vibe, top, affinity, posture, budget_hint) -> str:
     if not (vibe or "").strip():
         return "_No vibe given — every kind of place is weighted equally._"
+    # Off-domain / unreadable vibe: the interpreter degraded to neutral (all
+    # categories equal). Say so honestly instead of inventing a confident top-4.
+    vals = list(affinity.values())
+    if vals and (max(vals) - min(vals)) < 1e-6:
+        return (f"_I couldn't read a clear taste from “{vibe.strip()}” — "
+                f"weighting every kind of place equally._")
     lines = [f"**Reading “{vibe.strip()}” as:**"]
     for c in top:
         nice = c.replace("_", " ")

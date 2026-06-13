@@ -30,3 +30,6 @@ test_output.log
 # NOTE: data/*.graphml and data/*.parquet are the offline build artifacts.
 # They are committed for the Hugging Face Space so it needs no runtime download.
 # If they exceed Space size limits, switch to git-lfs (see PROGRESS.md).
+
+# Inference trace logs (Open Trace) — written at runtime, pushed to HF Dataset
+logs/

@@ -10,8 +10,8 @@ scikit-learn==1.9.0
 pyarrow==24.0.0
 folium==0.20.0
 
-# UI
-gradio==6.17.3
+# UI — 6.18 introduces gradio.Server (custom-frontend app-shell; see app.py)
+gradio==6.18.0
 
 # Vibe interpretation (Brick 4) — fastembed (ONNX, no torch) is the primary
 # backend; sentence-transformers remains as fallback.
@@ -20,7 +20,7 @@ sentence-transformers==5.5.1
 
 # Narration LLM (Brick 6) — Qwen3.5-9B on ZeroGPU
 transformers==5.10.2
-torch==2.12.0
+torch==2.11.0  # ZeroGPU-supported (2.12 rejected by Spaces)
 accelerate>=1.0
 huggingface-hub==1.18.0
 

@@ -20,6 +20,12 @@ from discoverroute.data import taxonomy
 # ranks contribute score * decay**rank (rank 0 = full). 0.5 => 1, 0.5, 0.25, ...
 DIVERSITY_DECAY = 0.5
 
+# Anonymous POIs (no OSM name) are demoted by this factor — applied BEFORE the
+# adventurousness serendipity boost, so high adventurousness surfaces *named*
+# hidden gems instead of flooding the route with un-findable "a piece of public
+# art" entries. (Parks/fountains/art are 40-83% unnamed in OSM.)
+UNNAMED_SCORE_FACTOR = 0.45
+
 
 @dataclass
 class Weights:
@@ -77,7 +83,15 @@ def base_score(poi, weights: Weights, adventurousness: float) -> float:
     adv = min(1.0, max(0.0, adventurousness))
     confidence_factor = poi.confidence ** (1.0 - adv)
     serendipity = 1.0 + adv * (1.0 - poi.confidence)
-    return raw * confidence_factor * serendipity
+    # Name-aware demotion (adv-independent): only penalise POIs that explicitly
+    # carry an empty/None name. POIs with no ``name`` attribute at all (synthetic
+    # test objects) are treated as named, so this never perturbs unit tests.
+    name_factor = 1.0
+    if hasattr(poi, "name"):
+        _name = getattr(poi, "name")
+        if _name is None or (isinstance(_name, str) and not _name.strip()):
+            name_factor = UNNAMED_SCORE_FACTOR
+    return raw * name_factor * confidence_factor * serendipity
 
 
 def score_pois(pois: list, weights: Weights, adventurousness: float) -> list:

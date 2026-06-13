@@ -63,8 +63,8 @@ def effective_weights(profile: dict, trip_vibe: str = "",
     prof = profile_affinity(profile)
     trip = None
     if (trip_vibe or "").strip():
-        from discoverroute.interpret import embed
-        trip = embed.vibe_to_affinity(trip_vibe)
+        from discoverroute.interpret.affinity import affinity_only
+        trip = affinity_only(trip_vibe)
 
     if prof is None and trip is None:
         affinity = {c: 1.0 for c in taxonomy.CATEGORIES}

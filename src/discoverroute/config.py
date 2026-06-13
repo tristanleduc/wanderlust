@@ -4,6 +4,8 @@ Everything tunable lives here so behaviour is inspectable, not scattered.
 """
 from __future__ import annotations
 
+import json
+import os
 from pathlib import Path
 
 # --- Paths -------------------------------------------------------------------
@@ -17,6 +19,22 @@ DATA_DIR.mkdir(exist_ok=True)
 # Cached offline artifacts (committed for the Space; built by data/build_graph.py).
 GRAPH_WALK_PATH = DATA_DIR / "paris_walk.graphml"
 POIS_PATH = DATA_DIR / "paris_pois.parquet"
+
+# --- Data provenance / freshness --------------------------------------------
+# The app runs on a static OSM snapshot; this manifest (written by build_pois.py)
+# records when it was built so the UI can show an honest "as of <date>" line.
+DATA_MANIFEST_PATH = DATA_DIR / "build_manifest.json"
+
+
+def _load_manifest() -> dict:
+    try:
+        return json.loads(DATA_MANIFEST_PATH.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 - missing/invalid manifest is non-fatal
+        return {}
+
+
+DATA_MANIFEST = _load_manifest()
+DATA_BUILD_DATE = DATA_MANIFEST.get("build_date", "")  # ISO 'YYYY-MM-DD' or ''
 
 # --- Geographic scope --------------------------------------------------------
 # Paris proper (the 20 arrondissements). Used to bound the OSM download and to
@@ -66,14 +84,28 @@ def corridor_halfwidth_m(budget: float) -> float:
 EMBED_MODEL = "BAAI/bge-small-en-v1.5"
 # bge-v1.5 retrieval instruction, prepended to the query (the vibe) only.
 EMBED_QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
-# Generative model for posture interpretation + narration (optional; ≤32B, ZeroGPU).
-LLM_MODEL = "Qwen/Qwen3.5-9B"
+# Generative model for vibe→weights extraction + narration. A 1B in-Space model
+# (Tiny Titan ≤4B; weights pulled from the Hub and run on ZeroGPU). Standard
+# LlamaForCausalLM architecture — no custom kernels.
+LLM_MODEL = "openbmb/MiniCPM5-1B"
+
+# --- Trace logging (Open Trace) ----------------------------------------------
+# Every inference call logs a row locally to logs/traces.jsonl; when a write
+# token is present, rows are ALSO pushed (async, non-blocking) to TRACE_REPO.
+# No token => local-only (graceful stub; nothing blocks).
+HF_TOKEN = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+TRACE_REPO = os.environ.get(
+    "DISCOVERROUTE_TRACE_REPO", "build-small-hackathon/discoverroute-traces"
+)
+
 # Affinity floor: the least-matching category still keeps this much interest so
 # the route can explore a little; the best-matching category maps to 1.0.
 AFFINITY_FLOOR = 0.15
 # Below this cosine-similarity span across categories, a vibe is treated as
-# off-domain/neutral rather than amplified into false preferences.
-MIN_AFFINITY_SPAN = 0.04
+# off-domain/neutral rather than amplified into false preferences. Measured:
+# off-domain text (gibberish, "quantum physics") spans ~0.06-0.14, real vibes
+# ~0.30+, so the threshold sits between — at 0.04 the guard never fired.
+MIN_AFFINITY_SPAN = 0.18
 
 
 # --- Adventurousness ---------------------------------------------------------

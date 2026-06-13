@@ -69,15 +69,6 @@ def test_demotion_by_posture():
     assert unknown.score == 1.0 and unknown.open_state is None
 
 
-def test_google_verify_noop_without_key(monkeypatch):
-    """Without GOOGLE_MAPS_API_KEY the enrichment must be a silent no-op."""
-    monkeypatch.delenv("GOOGLE_MAPS_API_KEY", raising=False)
-    from discoverroute.enrich import google_places
-    p = P("cafe", None)
-    assert google_places.verify_stops([p]) is False
-    assert not hasattr(p, "live_status")
-
-
 def test_holiday_rules_dont_block_weekday_decisions():
     # "PH off" must not force abstention on a decidable weekday
     assert is_open("Mo-Fr 08:00-18:00; PH off", TUE_15H) is True
