@@ -15,6 +15,7 @@ from __future__ import annotations
 import functools
 import logging
 import math
+import os
 import time
 from dataclasses import dataclass
 from zoneinfo import ZoneInfo
@@ -157,6 +158,42 @@ def _paris_area() -> Area:
     )
 
 
+def city_bbox(slug: str):
+    """(left, bottom, right, top) box for a pre-baked city — matches build_city."""
+    spec = config.CITIES[slug]
+    lat, lon = spec["center"]
+    r = spec["radius_m"]
+    dlat = r / 110_540.0
+    dlon = r / (111_320.0 * max(0.1, math.cos(math.radians(lat))))
+    return (lon - dlon, lat - dlat, lon + dlon, lat + dlat)
+
+
+def _in_bbox(pt, bbox) -> bool:
+    return bbox[0] <= pt[1] <= bbox[2] and bbox[1] <= pt[0] <= bbox[3]
+
+
+def available_cities() -> list[str]:
+    """Slugs of pre-baked cities whose data is actually present on disk."""
+    return [s for s in config.CITIES
+            if config.city_graph_path(s).exists() and config.city_pois_path(s).exists()]
+
+
+@functools.lru_cache(maxsize=8)
+def _city_area(slug: str) -> Area:
+    """Load a pre-baked city (committed graph + parquet) as an offline Area."""
+    from discoverroute.routing import graph as g
+
+    spec = config.CITIES[slug]
+    graph = ox.load_graphml(config.city_graph_path(slug))
+    df = pd.read_parquet(config.city_pois_path(slug))
+    origin = tuple(spec["center"])
+    return Area(
+        key=slug, label=spec["label"], graph=graph,
+        table=poimod.index_table(df, origin), csr=g.build_csr(graph),
+        origin=origin, tz=ZoneInfo(spec["tz"]), source="prebaked",
+    )
+
+
 # Manual bounded LRU of on-demand areas (graphs are heavy — keep only a few).
 _ondemand_cache: dict[str, Area] = {}
 _ondemand_order: list[str] = []
@@ -216,8 +253,24 @@ def resolve_area(start: tuple[float, float], end: tuple[float, float],
     """
     from discoverroute.routing.graph import RouteError
 
+    # 1) Paris — full pre-baked city (instant, offline).
     if config.in_paris(*start) and config.in_paris(*end):
         return _paris_area()
+
+    # 2) Other pre-baked cities (instant, offline) — both points in one city core.
+    for slug in available_cities():
+        bbox = city_bbox(slug)
+        if _in_bbox(start, bbox) and _in_bbox(end, bbox):
+            return _city_area(slug)
+
+    # 3) Anywhere else. Offline mode (the "Off the Grid" deploy config) only knows
+    # the pre-baked cities, so say so honestly. Online mode fetches live from OSM.
+    if os.environ.get(config.OFFLINE_ENV_VAR) == "1":
+        covered = ", ".join(["Paris"] + [config.CITIES[s]["label"] for s in available_cities()])
+        raise RouteError(
+            f"WanderLust covers {covered}. Pick a start and destination within one "
+            "of these cities (this build runs fully offline)."
+        )
 
     dist = _haversine_m(start, end)
     if dist > config.MAX_ENDPOINT_DISTANCE_M:

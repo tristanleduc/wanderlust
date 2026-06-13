@@ -79,6 +79,28 @@ def corridor_halfwidth_m(budget: float) -> float:
     return CORRIDOR_BASE_M + CORRIDOR_BUDGET_M * max(0.0, budget)
 
 
+# --- Pre-baked extra cities (offline, keeps "Off the Grid") ------------------
+# Paris ships full-city (above). These additional cities are baked as a bounded
+# walkable core (centre + radius) by data/build_city.py and committed, so they
+# route fully offline — no live OSM at request time. Add a city here, run
+# `python -m discoverroute.data.build_city <slug>`, commit the data.
+CITY_DATA_DIR = DATA_DIR / "cities"
+CITIES_MANIFEST_PATH = CITY_DATA_DIR / "cities_manifest.json"
+CITIES = {
+    "london":    {"label": "London",    "center": (51.5118, -0.1230), "radius_m": 3200, "tz": "Europe/London"},
+    "barcelona": {"label": "Barcelona", "center": (41.3870,  2.1700), "radius_m": 3200, "tz": "Europe/Madrid"},
+    "newyork":   {"label": "New York",  "center": (40.7560, -73.9845), "radius_m": 3200, "tz": "America/New_York"},
+}
+
+
+def city_graph_path(slug: str) -> Path:
+    return CITY_DATA_DIR / f"{slug}_walk.graphml"
+
+
+def city_pois_path(slug: str) -> Path:
+    return CITY_DATA_DIR / f"{slug}_pois.parquet"
+
+
 # --- Other cities (on-demand) ------------------------------------------------
 # Paris ships pre-baked (instant, offline). Any other city is fetched live from
 # OpenStreetMap at request time: we download only the bounding box spanning the

@@ -1,0 +1,56 @@
+{
+  "london": {
+    "label": "London",
+    "center": [
+      51.5118,
+      -0.123
+    ],
+    "bbox": [
+      -0.16918911934351633,
+      51.48285120318437,
+      -0.07681088065648367,
+      51.540748796815635
+    ],
+    "tz": "Europe/London",
+    "poi_count": 10852,
+    "build_date": "2026-06-13",
+    "source": "OpenStreetMap",
+    "license": "ODbL \u2014 \u00a9 OpenStreetMap contributors"
+  },
+  "barcelona": {
+    "label": "Barcelona",
+    "center": [
+      41.387,
+      2.17
+    ],
+    "bbox": [
+      2.131685394983051,
+      41.35805120318437,
+      2.2083146050169487,
+      41.415948796815634
+    ],
+    "tz": "Europe/Madrid",
+    "poi_count": 11198,
+    "build_date": "2026-06-13",
+    "source": "OpenStreetMap",
+    "license": "ODbL \u2014 \u00a9 OpenStreetMap contributors"
+  },
+  "newyork": {
+    "label": "New York",
+    "center": [
+      40.756,
+      -73.9845
+    ],
+    "bbox": [
+      -74.02244862803626,
+      40.72705120318437,
+      -73.94655137196374,
+      40.784948796815634
+    ],
+    "tz": "America/New_York",
+    "poi_count": 7416,
+    "build_date": "2026-06-13",
+    "source": "OpenStreetMap",
+    "license": "ODbL \u2014 \u00a9 OpenStreetMap contributors"
+  }
+}

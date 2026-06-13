@@ -247,6 +247,13 @@ def _prepare_discovery(graph, start, end, plain, mode, budget, weights, adventur
     candidates = poimod.corridor_pois(plain.coords, budget, table=table, origin=origin)
     if not candidates:
         return None, None, None
+    # Never offer the start or destination itself as a "discovery stop" — a POI
+    # sitting on an endpoint (e.g. the square you're starting from) is not a
+    # detour and reads as a bug. Drop anything within ENDPOINT_EXCLUSION_M.
+    candidates = [p for p in candidates
+                  if not _near_endpoint(p.lat, p.lon, start, end)]
+    if not candidates:
+        return None, None, None
     # Discovery vibes ("hidden gems"): drop famous, well-documented sights so the
     # route stays genuinely off the beaten path (Notre Dame etc. enter via several
     # categories, so filter by tag-richness, not category).
@@ -322,6 +329,19 @@ def _solve_one(graph, start, end, plain, mode, budget, shortlist, matrix, time_f
     discovery = g.stitch_route(graph, waypoint_nodes, mode, result.ordered_pois)
     discovery.dwell_s = result.dwell_time_s
     return discovery, result.ordered_pois
+
+
+def _near_endpoint(lat: float, lon: float, start, end, thresh_m: float = 80.0) -> bool:
+    """True if (lat, lon) is within thresh_m of the start or destination point."""
+    import math
+
+    def d(a, b):
+        (la1, lo1), (la2, lo2) = a, b
+        p1, p2 = math.radians(la1), math.radians(la2)
+        dp, dl = math.radians(la2 - la1), math.radians(lo2 - lo1)
+        h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+        return 2 * 6_371_000.0 * math.asin(math.sqrt(h))
+    return d((lat, lon), start) < thresh_m or d((lat, lon), end) < thresh_m
 
 
 def _city_label(start_query: str, dest_query: str) -> str:

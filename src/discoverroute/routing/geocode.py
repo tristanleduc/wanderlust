@@ -31,6 +31,7 @@ class _Entry(NamedTuple):
     n_tags: int
     display: str       # original POI name, for autocomplete suggestions
     category: str
+    city: str          # "paris" or a pre-baked city slug — for disambiguation
 
 
 def _normalize(text: str) -> str:
@@ -44,10 +45,36 @@ def _normalize(text: str) -> str:
 
 def _strip_trailing_geo(norm: str) -> str:
     """Drop trailing 'paris' / 'france' qualifiers (but never the whole query)."""
+    return _split_geo(norm)[0]
+
+
+@functools.lru_cache(maxsize=1)
+def _geo_hints() -> dict[str, str]:
+    """Normalised city/qualifier word -> city slug (for trailing-token hints)."""
+    from discoverroute import config
+
+    hints = {"paris": "paris", "france": "paris"}
+    for slug, spec in config.CITIES.items():
+        hints[slug] = slug
+        for tok in _normalize(spec["label"]).split():
+            hints[tok] = slug
+    return hints
+
+
+def _split_geo(norm: str) -> tuple[str, str | None]:
+    """Split a normalised query into (core, city_hint_slug).
+
+    Pops trailing geography qualifiers ("…, london", "…, paris, france") and
+    returns which city they point at, so a landmark that exists in two cities can
+    be disambiguated by the city the user named.
+    """
     tokens = norm.split()
-    while len(tokens) > 1 and tokens[-1] in _TRAILING_TOKENS:
+    hints = _geo_hints()
+    hint = None
+    while len(tokens) > 1 and tokens[-1] in hints:
+        hint = hints[tokens[-1]]
         tokens.pop()
-    return " ".join(tokens)
+    return " ".join(tokens), hint
 
 
 # Obvious non-Paris places that would otherwise namesake-match a Paris POI
@@ -76,35 +103,43 @@ def is_world_place(query: str) -> bool:
 
 @functools.lru_cache(maxsize=1)
 def _index() -> tuple[dict[str, _Entry], list[_Entry]]:
-    """Lazy name index: exact normalised-name map + full entry list.
+    """Lazy name index over Paris + every pre-baked city's POI names.
 
-    For duplicate names (e.g. chain shops) the exact map keeps the entry with
-    the highest (confidence, n_tags) — the best-documented bearer of the name.
+    Exact normalised-name map + full entry list. For duplicate names the exact
+    map keeps the entry with the highest (confidence, n_tags); the per-entry city
+    tag lets a city-hinted query ("…, London") prefer the right city.
     """
+    import pandas as pd
+
+    from discoverroute import config
+    from discoverroute.routing import area as area_mod
     from discoverroute.routing.pois import load_pois
 
-    df = load_pois()
-    named = df[df["name"].notna()]
+    sources = [("paris", load_pois())]
+    for slug in area_mod.available_cities():
+        try:
+            sources.append((slug, pd.read_parquet(config.city_pois_path(slug))))
+        except Exception:  # noqa: BLE001 - a missing/partial city is non-fatal
+            continue
+
     exact: dict[str, _Entry] = {}
     entries: list[_Entry] = []
-    for row in named.itertuples(index=False):
-        norm = _normalize(row.name)
-        if not norm:
-            continue
-        entry = _Entry(
-            norm=norm,
-            tokens=frozenset(norm.split()),
-            lat=float(row.lat),
-            lon=float(row.lon),
-            confidence=float(row.confidence),
-            n_tags=int(row.n_tags),
-            display=str(row.name),
-            category=str(row.category),
-        )
-        entries.append(entry)
-        best = exact.get(norm)
-        if best is None or (entry.confidence, entry.n_tags) > (best.confidence, best.n_tags):
-            exact[norm] = entry
+    for city, df in sources:
+        named = df[df["name"].notna()]
+        for row in named.itertuples(index=False):
+            norm = _normalize(row.name)
+            if not norm:
+                continue
+            entry = _Entry(
+                norm=norm, tokens=frozenset(norm.split()),
+                lat=float(row.lat), lon=float(row.lon),
+                confidence=float(row.confidence), n_tags=int(row.n_tags),
+                display=str(row.name), category=str(row.category), city=city,
+            )
+            entries.append(entry)
+            best = exact.get(norm)
+            if best is None or (entry.confidence, entry.n_tags) > (best.confidence, best.n_tags):
+                exact[norm] = entry
     return exact, entries
 
 
@@ -116,11 +151,16 @@ def local_geocode(query: str) -> tuple[float, float] | None:
     tokens present in the POI name), ranked by substring match, confidence,
     tag count, and name brevity. Returns None when nothing matches confidently.
     """
-    norm = _strip_trailing_geo(_normalize(query or ""))
+    norm, hint = _split_geo(_normalize(query or ""))
     if not norm:
         return None
     exact, entries = _index()
 
+    # Exact name match — prefer the hinted city when the query named one.
+    if hint:
+        for e in entries:
+            if e.norm == norm and e.city == hint:
+                return e.lat, e.lon
     hit = exact.get(norm)
     if hit is not None:
         return hit.lat, hit.lon
@@ -130,6 +170,10 @@ def local_geocode(query: str) -> tuple[float, float] | None:
         return None  # only short fragments — too ambiguous to trust
     q_set = frozenset(q_tokens)
     candidates = [e for e in entries if q_set <= e.tokens]
+    if hint:
+        hinted = [e for e in candidates if e.city == hint]
+        if hinted:
+            candidates = hinted
     if not candidates:
         return None
     best = max(
@@ -148,10 +192,12 @@ def suggest(query: str, limit: int = 8) -> tuple[str, ...]:
     display name. Pure local index — no network. Returns () for short/ambiguous
     input rather than guessing.
     """
-    norm = _strip_trailing_geo(_normalize(query or ""))
+    norm, hint = _split_geo(_normalize(query or ""))
     if len(norm) < 3:
         return ()
     _, entries = _index()
+    if hint:
+        entries = [e for e in entries if e.city == hint] or entries
     toks = norm.split()
     head, last = frozenset(toks[:-1]), toks[-1]
 
