@@ -124,7 +124,6 @@ def _plan_route_impl(
     )
     if has_vibe or has_profile:
         from discoverroute.interpret.profile import effective_weights
-        weights = effective_weights(profile or {}, vibe)
         if has_vibe:
             from discoverroute.interpret.vibe import interpret
             interp = interpret(vibe, adventurousness, budget)
@@ -134,14 +133,21 @@ def _plan_route_impl(
             adventurousness = interp.adventurousness  # may be cue-boosted (e.g. "hidden gems")
             if not weak_match and interp.top_categories:
                 top_requested = interp.top_categories[0]
+            # Use the interpreter's OWN affinity (it carries discovery-cue
+            # adjustments like zeroing "attraction" for "hidden gems"); blend with
+            # the saved profile when present.
+            if has_profile:
+                weights = effective_weights(profile or {}, trip_affinity=interp.affinity)
+                interp_md += "\n\n_Blended with your saved taste profile._"
+            else:
+                weights = interp.weights
             # An explicit pace word in the vibe ("quick", "all day") nudges the
             # budget — BUT never resurrects a detour the user explicitly disabled
             # by zeroing the slider (P0-3: budget 0 == plain route, slider wins).
             if interp.budget_hint is not None and slider_budget > 0:
                 budget = interp.budget_hint
-            if has_profile:
-                interp_md += "\n\n_Blended with your saved taste profile._"
         else:
+            weights = effective_weights(profile or {}, "")
             interp_md = _profile_explanation(weights)
     else:
         weights = scoring.manual_weights(prefer_green, prefer_quiet)

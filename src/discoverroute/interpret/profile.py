@@ -53,16 +53,20 @@ def profile_affinity(profile: dict) -> dict[str, float] | None:
 
 
 def effective_weights(profile: dict, trip_vibe: str = "",
-                      mood_blend: float = 0.6) -> Weights:
+                      mood_blend: float = 0.6, trip_affinity=None) -> Weights:
     """Blend persistent taste with the current trip's mood into scoring weights.
 
     ``mood_blend`` is the weight on the per-trip vibe (0 = profile only,
     1 = mood only). When only one signal exists, it is used directly; when
     neither does, every category is weighted equally (neutral).
+
+    ``trip_affinity`` lets the caller pass the vibe affinity it already computed
+    (e.g. the interpreter's, which carries discovery-cue adjustments) instead of
+    re-deriving it here — so those adjustments aren't silently dropped.
     """
     prof = profile_affinity(profile)
-    trip = None
-    if (trip_vibe or "").strip():
+    trip = trip_affinity
+    if trip is None and (trip_vibe or "").strip():
         from discoverroute.interpret.affinity import affinity_only
         trip = affinity_only(trip_vibe)
 

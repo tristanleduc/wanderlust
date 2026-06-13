@@ -17,6 +17,8 @@ road-proximity quietness) are P2.
 """
 from __future__ import annotations
 
+import re
+
 # Category -> (greenness 0..1, quietness 0..1). Order matters: classification
 # walks the matcher list top-to-bottom and takes the first match, so put more
 # specific categories before broader ones.
@@ -59,7 +61,7 @@ CATEGORY_GLOSS: dict[str, str] = {
     "bar_pub": "a lively bar, pub or wine bar, drinks and atmosphere",
     "market": "a bustling open-air or covered market, food and stalls",
     "specialty_shop": "a characterful specialty shop — antiques, art, design",
-    "attraction": "a famous landmark or major sight worth seeing",
+    "attraction": "a major crowded tourist attraction or world-famous monument",
 }
 
 
@@ -136,14 +138,30 @@ def pretty_category(category: str) -> str:
     return PRETTY_CATEGORY.get(category) or (category or "place").replace("_", " ")
 
 
+# OSM sometimes stores a bare reference code in the name field (e.g. "PA_1570",
+# a heritage ID). It's not a findable place name — treat it as unnamed so it
+# self-demotes in scoring and shows as "a <noun>", not an unfindable code.
+_REF_NAME_RE = re.compile(r"^([A-Za-z]{1,4}[_-]\d{2,}[A-Za-z]?|\d{3,})$")
+
+
+def is_real_name(name) -> bool:
+    """True if ``name`` is a usable place name (not empty, not a bare ref code)."""
+    if name is None:
+        return False
+    s = str(name).strip()
+    if not s:
+        return False
+    return not _REF_NAME_RE.match(s)
+
+
 def display_label(poi) -> str:
     """The single source of truth for naming a POI in any UI surface.
 
     The real OSM name when present; otherwise a natural 'a/an <noun>' phrase with
-    the correct article (never a raw 'a artwork' or snake_case category).
+    the correct article (never a raw 'a artwork', snake_case, or a ref code).
     """
     name = getattr(poi, "name", None)
-    if name is not None and str(name).strip():
+    if is_real_name(name):
         return str(name).strip()
     noun = pretty_category(getattr(poi, "category", "") or "")
     article = "an" if noun[:1].lower() in "aeiou" else "a"

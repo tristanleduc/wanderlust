@@ -89,7 +89,8 @@ def base_score(poi, weights: Weights, adventurousness: float) -> float:
     name_factor = 1.0
     if hasattr(poi, "name"):
         _name = getattr(poi, "name")
-        if _name is None or (isinstance(_name, str) and not _name.strip()):
+        # Empty OR a bare ref code ("PA_1570") → unfindable → demote like unnamed.
+        if not taxonomy.is_real_name(_name):
             name_factor = UNNAMED_SCORE_FACTOR
     return raw * name_factor * confidence_factor * serendipity
 
