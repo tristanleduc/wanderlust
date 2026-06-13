@@ -86,7 +86,8 @@ DR_CSS = """
   box-shadow:0 2px 0 var(--dr-coral-d) !important; }
 
 /* mode toggle as a segmented control */
-#dr-mode .wrap{ background:#F0E3CC; padding:5px; border-radius:var(--dr-r); gap:6px; }
+#dr-mode .wrap{ display:flex; align-items:center; background:#F0E3CC; padding:5px;
+  border-radius:var(--dr-r); gap:6px; }
 #dr-mode label{ flex:1; justify-content:center; border:none !important;
   background:transparent !important; color:var(--dr-soft) !important;
   border-radius:13px !important; transition:all .2s var(--dr-spring); }
