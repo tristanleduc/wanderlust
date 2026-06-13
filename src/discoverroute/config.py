@@ -101,6 +101,16 @@ TRACE_REPO = os.environ.get(
 # Affinity floor: the least-matching category still keeps this much interest so
 # the route can explore a little; the best-matching category maps to 1.0.
 AFFINITY_FLOOR = 0.15
+# Only the top-N matched categories drive a vibe route; the rest are zeroed so
+# the long tail (ranks N+1..17) can't silently backfill stops with off-vibe
+# filler (the adversarial review found the same statues/churches bleeding into
+# 10+ unrelated routes via the floor). Sparse routes then end honestly short.
+TOP_AFFINITY_CATEGORIES = 6
+# A vibe whose BEST raw cosine to any category gloss is below this is a weak/
+# out-of-vocabulary match (measured: real vibes peak 0.66-0.85; "brutalist
+# architecture" 0.51, nonsense ~0.49). We still route, but the narration says so
+# honestly instead of claiming "a match for your vibe".
+WEAK_MATCH_SIMILARITY = 0.55
 # Below this cosine-similarity span across categories, a vibe is treated as
 # off-domain/neutral rather than amplified into false preferences. Measured
 # (bge-small, 16-vibe battery): gibberish "asdfqwer" spans 0.081; the LOWEST

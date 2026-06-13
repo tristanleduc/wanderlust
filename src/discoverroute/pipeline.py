@@ -114,6 +114,7 @@ def _plan_route_impl(
     # Taste resolution priority: (persistent profile ⊕ trip vibe) > manual sliders.
     from discoverroute.data import taxonomy
     interp_md = ""
+    weak_match = False
     posture = {c: taxonomy.posture(c) for c in taxonomy.CATEGORIES}
     has_vibe = bool((vibe or "").strip())
     has_profile = bool(
@@ -128,6 +129,7 @@ def _plan_route_impl(
             interp = interpret(vibe, adventurousness, budget)
             posture = interp.posture
             interp_md = interp.explanation
+            weak_match = interp.weak
             # An explicit pace word in the vibe ("quick", "all day") nudges the
             # budget — BUT never resurrects a detour the user explicitly disabled
             # by zeroing the slider (P0-3: budget 0 == plain route, slider wins).
@@ -169,7 +171,7 @@ def _plan_route_impl(
             itinerary_md, _ = narrate(
                 plain, discovery, selected, vibe=vibe, mode=mode,
                 start_label=start_query.strip(), end_label=dest_query.strip(),
-                posture=posture, weights=weights,
+                posture=posture, weights=weights, weak=weak_match,
             )
             alternatives.append(Alternative(
                 discovery=discovery, pois=selected,

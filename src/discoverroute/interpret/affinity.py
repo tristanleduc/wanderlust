@@ -15,11 +15,22 @@ from __future__ import annotations
 
 import functools
 
+from discoverroute import config
 from discoverroute.data import taxonomy
 
 
 def _neutral() -> dict[str, float]:
     return {c: 1.0 for c in taxonomy.CATEGORIES}
+
+
+def _cap_top_n(aff: dict[str, float]) -> dict[str, float]:
+    """Zero all but the top-N categories so the long tail can't backfill routes
+    with off-vibe filler. (Embed self-caps; this also covers the LLM/keyword
+    tiers so the guarantee holds regardless of which one ran.)"""
+    if not aff:
+        return aff
+    keep = set(sorted(aff, key=aff.get, reverse=True)[: config.TOP_AFFINITY_CATEGORIES])
+    return {c: (v if c in keep else 0.0) for c, v in aff.items()}
 
 
 @functools.lru_cache(maxsize=256)
@@ -33,9 +44,9 @@ def resolve_affinity(vibe: str) -> tuple[dict[str, float], str]:
     from discoverroute.interpret import llm_vibe
     result = llm_vibe.extract(vibe)
     if result:
-        return result["affinity"], "llm"
+        return _cap_top_n(result["affinity"]), "llm"
 
-    # tier 2 — sentence embeddings (CPU)
+    # tier 2 — sentence embeddings (CPU); embed.vibe_to_affinity self-caps
     try:
         from discoverroute.interpret import embed
         return embed.vibe_to_affinity(vibe), "embed"
@@ -46,7 +57,7 @@ def resolve_affinity(vibe: str) -> tuple[dict[str, float], str]:
     from discoverroute.interpret import keywords
     kw = keywords.keyword_affinity(vibe)
     if kw:
-        return kw, "keyword"
+        return _cap_top_n(kw), "keyword"
 
     return _neutral(), "neutral"
 

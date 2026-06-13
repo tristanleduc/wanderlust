@@ -82,4 +82,21 @@ def vibe_to_affinity(vibe: str) -> dict[str, float]:
     if span < config.MIN_AFFINITY_SPAN:
         return {c: 1.0 for c in cats}
     floor = config.AFFINITY_FLOOR
-    return {c: floor + (1.0 - floor) * (float(s) - lo) / span for c, s in zip(cats, sims)}
+    aff = {c: floor + (1.0 - floor) * (float(s) - lo) / span for c, s in zip(cats, sims)}
+    # Keep only the top-N categories; zero the long tail so off-vibe categories
+    # can't backfill route slots once on-vibe candidates run out.
+    keep = set(sorted(aff, key=aff.get, reverse=True)[: config.TOP_AFFINITY_CATEGORIES])
+    return {c: (v if c in keep else 0.0) for c, v in aff.items()}
+
+
+@functools.lru_cache(maxsize=256)
+def raw_top_similarity(vibe: str) -> float:
+    """Best raw cosine of the vibe to any category gloss — a match-confidence
+    signal (independent of the min-max rescale, which always forces a 1.0)."""
+    vibe = (vibe or "").strip()
+    if not vibe:
+        return 0.0
+    _, gloss_emb = _gloss_matrix()
+    _, encode = _encoder()
+    q = encode([config.EMBED_QUERY_INSTRUCTION + vibe])[0]
+    return float((gloss_emb @ q).max())

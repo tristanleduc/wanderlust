@@ -37,6 +37,8 @@ class Interpretation:
     budget_hint: float | None      # suggested budget, or None if not implied
     explanation: str               # human-readable, inspectable
     top_categories: list[str] = field(default_factory=list)
+    confidence: float = 1.0        # best raw cosine to a category gloss
+    weak: bool = False             # True => out-of-vocabulary / weak match
 
 
 def _contains(text: str, cues) -> bool:
@@ -68,11 +70,19 @@ def interpret(vibe: str, adventurousness: float = config.DEFAULT_ADVENTUROUSNESS
         budget_hint = 0.2
 
     top = sorted(affinity, key=affinity.get, reverse=True)[:4]
-    explanation = _explain(vibe, top, affinity, posture, budget_hint)
-    return Interpretation(affinity, weights, posture, budget_hint, explanation, top)
+    # Match confidence from the raw embedding cosine (independent of rescaling).
+    try:
+        from discoverroute.interpret import embed
+        confidence = embed.raw_top_similarity(vibe)
+    except Exception:  # noqa: BLE001 - encoder unavailable
+        confidence = 1.0
+    weak = bool(text) and confidence < config.WEAK_MATCH_SIMILARITY
+    explanation = _explain(vibe, top, affinity, posture, budget_hint, weak)
+    return Interpretation(affinity, weights, posture, budget_hint, explanation, top,
+                          confidence=confidence, weak=weak)
 
 
-def _explain(vibe, top, affinity, posture, budget_hint) -> str:
+def _explain(vibe, top, affinity, posture, budget_hint, weak=False) -> str:
     if not (vibe or "").strip():
         return "_No vibe given — every kind of place is weighted equally._"
     # Off-domain / unreadable vibe: the interpreter degraded to neutral (all
@@ -81,7 +91,9 @@ def _explain(vibe, top, affinity, posture, budget_hint) -> str:
     if vals and (max(vals) - min(vals)) < 1e-6:
         return (f"_I couldn't read a clear taste from “{vibe.strip()}” — "
                 f"weighting every kind of place equally._")
-    lines = [f"**Reading “{vibe.strip()}” as:**"]
+    header = (f"**No strong match for “{vibe.strip()}” — here's my closest guess:**"
+              if weak else f"**Reading “{vibe.strip()}” as:**")
+    lines = [header]
     for c in top:
         nice = c.replace("_", " ")
         lines.append(f"- {nice} (affinity {affinity[c]:.2f}, "

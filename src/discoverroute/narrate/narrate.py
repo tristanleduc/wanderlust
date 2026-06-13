@@ -57,7 +57,7 @@ def _hours_badge(poi, posture_val: str) -> str:
 
 
 def template_narration(plain, discovery, pois, vibe, mode, start_label="",
-                       end_label="", posture=None, weights=None) -> str:
+                       end_label="", posture=None, weights=None, weak=False) -> str:
     posture = posture or {}
     n = len(pois)
     extra = round(discovery.time_min + getattr(discovery, "dwell_s", 0.0) / 60.0
@@ -65,7 +65,14 @@ def template_narration(plain, discovery, pois, vibe, mode, start_label="",
     unit = "minute" if extra == 1 else "minutes"
     place_word = "place" if n == 1 else "places"
     v = (vibe or "").strip()
-    vibe_clause = f" to match your *{v}* mood" if v else ""
+    # Honest framing for a weak / out-of-vocabulary vibe: don't pretend these are
+    # tailored matches (the review found "brutalist architecture" → churches
+    # confidently labelled "a match for your vibe").
+    if v and weak:
+        vibe_clause = (f" — I didn't find a strong match for *{v}*, so here's a "
+                       f"varied walk worth taking")
+    else:
+        vibe_clause = f" to match your *{v}* mood" if v else ""
     lead = "### Why this route\n"
     lead += (
         f"Spending **{extra} extra {unit}**{vibe_clause}, your {mode} threads "
@@ -73,9 +80,10 @@ def template_narration(plain, discovery, pois, vibe, mode, start_label="",
         f"{end_label or 'the destination'}:\n"
     )
     # The categories the vibe leans on most — used to tie a stop back to the vibe.
+    # A weak vibe has no real matches, so don't tag stops "a match for your vibe".
     top_cats: set[str] = set()
     aff = getattr(weights, "category_affinity", None)
-    if v and aff:
+    if v and aff and not weak:
         top_cats = set(sorted(aff, key=aff.get, reverse=True)[:3])
 
     lines = [lead]
@@ -128,10 +136,10 @@ def llm_available() -> bool:
 
 
 def narrate(plain, discovery, pois, vibe="", mode="walk", start_label="",
-            end_label="", posture=None, weights=None) -> tuple[str, bool]:
+            end_label="", posture=None, weights=None, weak=False) -> tuple[str, bool]:
     """Return (markdown, used_llm). Output is guaranteed grounded."""
     template = template_narration(
-        plain, discovery, pois, vibe, mode, start_label, end_label, posture, weights
+        plain, discovery, pois, vibe, mode, start_label, end_label, posture, weights, weak
     )
     if not llm_available():
         return template, False
