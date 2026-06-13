@@ -94,6 +94,15 @@ def _plan_route_impl(
     n_alternatives: int = 1,
 ) -> PlanResult:
     """Plan a route. Returns a PlanResult; never raises for user-facing errors."""
+    # Validate & clamp inputs up front (an unknown mode would silently route at
+    # walking speed then mislabel itself; out-of-range budget breaks invariants).
+    mode = (mode or "").strip().lower()
+    if mode not in config.TRAVEL_SPEEDS_KMH:
+        return PlanResult(None, None, [], None, None, "", "",
+                          error="Mode must be 'walk' or 'bike'.")
+    slider_budget = max(0.0, min(float(budget), config.MAX_BUDGET))
+    budget = slider_budget
+    adventurousness = max(0.0, min(float(adventurousness), 1.0))
     try:
         graph = g.load_graph()
         start = g.geocode_point(start_query)
@@ -119,10 +128,10 @@ def _plan_route_impl(
             interp = interpret(vibe, adventurousness, budget)
             posture = interp.posture
             interp_md = interp.explanation
-            # An explicit pace word in the vibe ("quick", "all day") overrides the
-            # slider — otherwise the shown "pace hint → budget ≈ X" contradicts the
-            # route actually planned.
-            if interp.budget_hint is not None:
+            # An explicit pace word in the vibe ("quick", "all day") nudges the
+            # budget — BUT never resurrects a detour the user explicitly disabled
+            # by zeroing the slider (P0-3: budget 0 == plain route, slider wins).
+            if interp.budget_hint is not None and slider_budget > 0:
                 budget = interp.budget_hint
             if has_profile:
                 interp_md += "\n\n_Blended with your saved taste profile._"

@@ -108,6 +108,48 @@ DWELL_TIME_SEC: dict[str, float] = {
 }
 
 
+# Warm, natural noun per category for POIs that have no OSM name — so an unnamed
+# place reads as "a quiet garden", not the clunky "a park garden" / raw snake_case.
+PRETTY_CATEGORY: dict[str, str] = {
+    "park_garden": "garden",
+    "water_feature": "fountain",
+    "viewpoint": "viewpoint",
+    "monument_historic": "historic landmark",
+    "museum_gallery": "museum",
+    "artwork": "piece of public art",
+    "place_of_worship": "church",
+    "library": "library",
+    "bookshop": "bookshop",
+    "theatre_cinema": "theatre",
+    "cafe": "café",
+    "bakery_food_shop": "bakery",
+    "restaurant": "restaurant",
+    "bar_pub": "bar",
+    "market": "market",
+    "specialty_shop": "shop",
+    "attraction": "landmark",
+}
+
+
+def pretty_category(category: str) -> str:
+    """Human noun for a category, e.g. 'park_garden' -> 'garden'."""
+    return PRETTY_CATEGORY.get(category) or (category or "place").replace("_", " ")
+
+
+def display_label(poi) -> str:
+    """The single source of truth for naming a POI in any UI surface.
+
+    The real OSM name when present; otherwise a natural 'a/an <noun>' phrase with
+    the correct article (never a raw 'a artwork' or snake_case category).
+    """
+    name = getattr(poi, "name", None)
+    if name is not None and str(name).strip():
+        return str(name).strip()
+    noun = pretty_category(getattr(poi, "category", "") or "")
+    article = "an" if noun[:1].lower() in "aeiou" else "a"
+    return f"{article} {noun}"
+
+
 def posture(category: str) -> str:
     return POSTURE_DEFAULT.get(category, "pass")
 

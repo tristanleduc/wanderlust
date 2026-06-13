@@ -110,11 +110,15 @@ def render_routes(
         all_coords.extend(discovery.coords)
 
     if pois:
+        from discoverroute.data import taxonomy
         for i, poi in enumerate(pois):
-            name = getattr(poi, "name", None) or getattr(poi, "category", "POI")
+            name = getattr(poi, "name", None)
             cat = getattr(poi, "category", "")
             icon = markers.poi_icon(cat, index=i)
-            tooltip = f"{name} · {cat.replace('_', ' ')}" if cat else str(name)
+            if name and str(name).strip():
+                tooltip = f"{name} · {taxonomy.pretty_category(cat)}" if cat else str(name)
+            else:  # unnamed → a single natural label, never raw snake_case
+                tooltip = taxonomy.display_label(poi)
             if icon is not None:
                 folium.Marker([poi.lat, poi.lon], icon=icon,
                               tooltip=tooltip).add_to(fmap)

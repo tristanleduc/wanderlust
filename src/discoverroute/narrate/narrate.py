@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 
+from discoverroute.data import taxonomy
 from discoverroute.narrate import grounding
 
 # Phrasing per category for the template. Generic (no external facts) so the only
@@ -42,32 +43,54 @@ def _verb(posture: str) -> str:
     return "Pause at" if posture == "stop" else "Pass by"
 
 
+def _hours_badge(poi, posture_val: str) -> str:
+    """Honest open/closed badge. Unknown hours are flagged only for places you'd
+    enter (stops); a park you stroll past needs no 'hours unverified' caveat."""
+    state = getattr(poi, "open_state", None)  # OSM opening_hours, when decidable
+    if state is True:
+        return " · 🟢 open now"
+    if state is False:
+        return " · 🔴 closed right now"
+    if posture_val == "stop":
+        return " · ⚪ hours unverified"
+    return ""
+
+
 def template_narration(plain, discovery, pois, vibe, mode, start_label="",
-                       end_label="", posture=None) -> str:
+                       end_label="", posture=None, weights=None) -> str:
     posture = posture or {}
+    n = len(pois)
     extra = round(discovery.time_min + getattr(discovery, "dwell_s", 0.0) / 60.0
                   - plain.time_min)
     unit = "minute" if extra == 1 else "minutes"
-    lead = f"### Why this route\n"
-    vibe_clause = f" for a *{vibe.strip()}*" if (vibe or "").strip() else ""
+    place_word = "place" if n == 1 else "places"
+    v = (vibe or "").strip()
+    vibe_clause = f" to match your *{v}* mood" if v else ""
+    lead = "### Why this route\n"
     lead += (
         f"Spending **{extra} extra {unit}**{vibe_clause}, your {mode} threads "
-        f"{len(pois)} discoveries between {start_label or 'the start'} and "
+        f"**{n} {place_word}** between {start_label or 'the start'} and "
         f"{end_label or 'the destination'}:\n"
     )
+    # The categories the vibe leans on most — used to tie a stop back to the vibe.
+    top_cats: set[str] = set()
+    aff = getattr(weights, "category_affinity", None)
+    if v and aff:
+        top_cats = set(sorted(aff, key=aff.get, reverse=True)[:3])
+
     lines = [lead]
+    prev_cat = None
     for i, p in enumerate(pois, 1):
-        name = p.name or f"a {p.category.replace('_', ' ')}"
-        reason = _REASON.get(p.category, "a stop worth making")
-        verb = _verb(posture.get(p.category, "pass"))
-        state = getattr(p, "open_state", None)  # OSM opening_hours, when decidable
-        if state is True:
-            badge = " · 🟢 open now"
-        elif state is False:
-            badge = " · 🔴 closed right now"
+        label = taxonomy.display_label(p)
+        if p.category == prev_cat:  # avoid 3 identical reason lines in a row
+            reason = f"another {taxonomy.pretty_category(p.category)} along the way"
         else:
-            badge = ""
-        lines.append(f"{i}. **{name}** — {verb.lower()} for {reason}.{badge}")
+            reason = _REASON.get(p.category, "a spot worth a look")
+        prev_cat = p.category
+        verb = _verb(posture.get(p.category, "pass"))
+        tie = " — a match for your vibe" if (v and p.category in top_cats) else ""
+        badge = _hours_badge(p, posture.get(p.category, "pass"))
+        lines.append(f"{i}. **{label}** — {verb.lower()} for {reason}{tie}.{badge}")
     lines.append(
         f"\nThen on to {end_label or 'your destination'}. Every place above is a "
         f"real spot on your route — nothing invented."
@@ -76,18 +99,29 @@ def template_narration(plain, discovery, pois, vibe, mode, start_label="",
 
 
 def llm_available() -> bool:
-    """True only if explicitly enabled and a GPU + transformers are present."""
-    if os.environ.get("DISCOVERROUTE_USE_LLM", "auto").lower() in ("0", "false", "off"):
+    """True when the generative narrator (MiniCPM5-1B) should run.
+
+    ZeroGPU gotcha: on a ZeroGPU Space the GPU is allocated on demand *inside* an
+    ``@spaces.GPU`` call, so ``torch.cuda.is_available()`` is False here at gate
+    time — gating on it would silently force the template forever. We instead
+    trust the ZeroGPU/Space environment (and an explicit override). The narrator
+    still fails closed to the template if the model errors or fails grounding.
+    """
+    flag = os.environ.get("DISCOVERROUTE_USE_LLM", "auto").lower()
+    if flag in ("0", "false", "off"):
         return False
     try:
         import torch  # noqa: F401
         import transformers  # noqa: F401
     except Exception:
         return False
+    if flag in ("1", "true", "on"):
+        return True
+    # ZeroGPU Space: CUDA isn't visible outside @spaces.GPU — enable by environment.
+    if os.environ.get("SPACES_ZERO_GPU") or os.environ.get("SPACES_ZERO_GPU_V2"):
+        return True
     try:
         import torch
-        if os.environ.get("DISCOVERROUTE_USE_LLM", "auto").lower() in ("1", "true", "on"):
-            return True
         return bool(torch.cuda.is_available())
     except Exception:
         return False
@@ -97,7 +131,7 @@ def narrate(plain, discovery, pois, vibe="", mode="walk", start_label="",
             end_label="", posture=None, weights=None) -> tuple[str, bool]:
     """Return (markdown, used_llm). Output is guaranteed grounded."""
     template = template_narration(
-        plain, discovery, pois, vibe, mode, start_label, end_label, posture
+        plain, discovery, pois, vibe, mode, start_label, end_label, posture, weights
     )
     if not llm_available():
         return template, False
@@ -142,7 +176,7 @@ def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
     """Generate narration with MiniCPM5-1B, constrained to the allowed names."""
     from discoverroute.narrate.llm import run_inference
 
-    names = [p.name or f"a {p.category.replace('_', ' ')}" for p in pois]
+    names = [taxonomy.display_label(p) for p in pois]
     bullet = "\n".join(
         f"- {n} ({p.category.replace('_', ' ')})" for n, p in zip(names, pois)
     )

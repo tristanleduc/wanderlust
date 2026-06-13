@@ -75,6 +75,12 @@ def interpret(vibe: str, adventurousness: float = config.DEFAULT_ADVENTUROUSNESS
 def _explain(vibe, top, affinity, posture, budget_hint) -> str:
     if not (vibe or "").strip():
         return "_No vibe given — every kind of place is weighted equally._"
+    # Off-domain / unreadable vibe: the interpreter degraded to neutral (all
+    # categories equal). Say so honestly instead of inventing a confident top-4.
+    vals = list(affinity.values())
+    if vals and (max(vals) - min(vals)) < 1e-6:
+        return (f"_I couldn't read a clear taste from “{vibe.strip()}” — "
+                f"weighting every kind of place equally._")
     lines = [f"**Reading “{vibe.strip()}” as:**"]
     for c in top:
         nice = c.replace("_", " ")

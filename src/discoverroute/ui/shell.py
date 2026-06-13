@@ -14,8 +14,26 @@ Only the spatial layout (``APP_SHELL_CSS``) and the vanilla-JS interactivity
 """
 from __future__ import annotations
 
+from discoverroute import config
 from discoverroute.ui import design
 from discoverroute.ui import map as mapui
+
+_MONTHS = ["", "January", "February", "March", "April", "May", "June", "July",
+           "August", "September", "October", "November", "December"]
+
+
+def _provenance_line() -> str:
+    """Honest data-freshness + attribution line for the results sheet footer."""
+    when = ""
+    d = config.DATA_BUILD_DATE
+    if d:
+        try:
+            y, m, _ = d.split("-")
+            when = f" · snapshot {_MONTHS[int(m)]} {y}"
+        except Exception:  # noqa: BLE001
+            when = f" · snapshot {d}"
+    return (f"Places from OpenStreetMap{when} · open/close times are best-effort "
+            f"(often unlisted) · © OpenStreetMap contributors (ODbL)")
 
 # --------------------------------------------------------------- app-shell CSS
 APP_SHELL_CSS = """
@@ -25,45 +43,26 @@ body{ font-family:'DM Sans',ui-sans-serif,system-ui,sans-serif; color:var(--dr-i
   background:radial-gradient(1100px 520px at 88% -8%,#FBEFD6 0%,transparent 60%),var(--dr-cream); }
 
 .app-shell{
-  display:grid; grid-template-columns:340px 1fr; grid-template-rows:auto 1fr;
-  height:100vh; width:100%; background:var(--dr-cream);
+  display:grid; grid-template-columns:340px 1fr; grid-template-rows:1fr;
+  height:100vh; height:100dvh; width:100%; background:var(--dr-cream);
 }
 
-/* ---- hero (compact but roomy — content must never clip) ---- */
-.hero{ grid-column:1 / -1; grid-row:1; display:flex; align-items:center; gap:22px;
-  background:linear-gradient(120deg,#2F5DF4,#5C7DF8); color:#fff;
-  padding:18px 34px; max-height:180px; overflow:hidden; position:relative;
-  box-shadow:0 10px 30px -18px rgba(33,74,208,.7); z-index:3; }
-.hero::after{ content:''; position:absolute; inset:0; pointer-events:none;
-  background:radial-gradient(420px 180px at 96% -30%,rgba(255,255,255,.16),transparent 70%); }
-.hero .hero-body{ flex:1; min-width:0; position:relative; z-index:1; }
-.hero .loc-pill{ display:inline-flex; align-items:center; gap:7px; background:rgba(255,255,255,.18);
-  border-radius:999px; padding:4px 12px; font-family:'Fredoka',sans-serif; font-weight:600;
-  font-size:11.5px; letter-spacing:.05em; text-transform:uppercase; }
-.hero .loc-pill .dot{ width:7px;height:7px;border-radius:50%;background:#FFC247;
-  box-shadow:0 0 0 0 rgba(255,194,71,.7); animation:drBeacon 2.4s ease-out infinite; }
-@keyframes drBeacon{ 0%{ box-shadow:0 0 0 0 rgba(255,194,71,.6); }
-  70%,100%{ box-shadow:0 0 0 7px rgba(255,194,71,0); } }
-.hero h1{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:30px; letter-spacing:-.025em;
-  margin:7px 0 4px; line-height:1.04; color:#fff; }
-.hero h1 .accent{ color:#FFE0A0; }
-.hero p{ margin:0 0 9px; max-width:64ch; color:#EAF0FF; font-size:13px; line-height:1.35; }
-.hero .badges{ display:flex; flex-wrap:wrap; gap:8px; }
-.hero .badges span{ background:rgba(255,255,255,.14); border-radius:999px; padding:5px 12px;
-  font-size:11.5px; font-family:'Fredoka',sans-serif; font-weight:500; }
-.hero .hero-art{ flex-shrink:0; width:84px; position:relative; z-index:1;
-  animation:drFloat 6s ease-in-out infinite; }
-.hero .hero-art svg{ width:84px; height:auto; display:block; }
-@keyframes drFloat{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-7px); } }
-.hero .titan-chip{ position:absolute; top:12px; right:20px; z-index:2;
-  display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.18);
-  border-radius:999px; padding:4px 12px; font-size:10.5px; font-family:'Fredoka',sans-serif;
-  font-weight:600; letter-spacing:.02em; }
-.hero .titan-chip::before{ content:''; width:6px; height:6px; border-radius:50%;
-  background:#9BF0BE; box-shadow:0 0 6px #6FE39C; }
+/* ---- brand header (top of the left panel — replaces the old blue ribbon) ---- */
+.brand{ display:flex; align-items:center; gap:10px; padding:0 0 14px; margin-bottom:6px;
+  border-bottom:1px solid var(--dr-line); }
+.brand .logo{ width:34px; height:34px; border-radius:11px; flex-shrink:0; display:grid;
+  place-items:center; font-size:18px; background:linear-gradient(135deg,#2F5DF4,#5C7DF8);
+  box-shadow:0 6px 14px -6px rgba(47,93,244,.7); }
+.brand .bname{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:19px;
+  letter-spacing:-.01em; color:var(--dr-ink); line-height:1; }
+.brand .titan-chip{ margin-left:auto; display:inline-flex; align-items:center; gap:6px;
+  background:#EAF6EF; color:var(--dr-grass-d); border-radius:999px; padding:4px 10px;
+  font-size:10px; font-family:'Fredoka',sans-serif; font-weight:600; white-space:nowrap; }
+.brand .titan-chip::before{ content:''; width:6px; height:6px; border-radius:50%;
+  background:var(--dr-grass); box-shadow:0 0 6px var(--dr-grass); }
 
 /* ---- left control panel (340px, scrollable, sticky CTA) ---- */
-.left-panel{ grid-column:1; grid-row:2; width:340px; height:100%; overflow:hidden;
+.left-panel{ grid-column:1; grid-row:1; width:340px; height:100%; overflow:hidden;
   border-right:1px solid var(--dr-line);
   background:linear-gradient(180deg,#FBF3E2,var(--dr-cream) 140px);
   display:flex; flex-direction:column; }
@@ -152,26 +151,59 @@ details.dr-collapse .collapse-body{ padding:13px 15px; }
   color:var(--dr-ink); transition:all .16s var(--dr-spring); }
 .dr-star:hover{ transform:translateY(-2px); border-color:var(--dr-sun); background:#FFF8E8; }
 
-/* ---- right column: map · summary bar · itinerary ---- */
-.right-col{ grid-column:2; grid-row:2; display:flex; flex-direction:column; height:100%;
-  min-width:0; padding:16px 18px 0; gap:14px; overflow:hidden; }
-.map-container{ flex:1 1 0; min-height:240px; position:relative; }
-#dr-map{ height:100%; }
-#dr-map .map-inner{ position:absolute; inset:46px 0 0 0; }
+/* ---- right column: full-bleed map (the hero element) ---- */
+.right-col{ grid-column:2; grid-row:1; position:relative; height:100%; min-width:0; overflow:hidden; }
+.map-container{ position:absolute; inset:0; }
+/* full-bleed: strip the framed-window chrome that DR_CSS gives #dr-map */
+#dr-map{ height:100%; border:none !important; border-radius:0 !important;
+  box-shadow:none !important; background:#F6ECD9; }
+#dr-map::before{ display:none !important; }
+#dr-map .map-inner{ position:absolute; inset:0; }
 #dr-map .map-inner > div,
 #dr-map iframe,
 #dr-map .folium-map,
 #dr-map .leaflet-container{ width:100% !important; height:100% !important; }
 #dr-map .map-inner > div > div{ padding-bottom:0 !important; height:100% !important; }
-.route-summary-bar{ flex:0 0 auto; }
-#dr-summary{ margin:0; }
+
 /* the styled result blocks only exist once a route is planned */
 #dr-summary:empty, #dr-interp:empty, #dr-itin:empty, #dr-nodetour:empty{ display:none; }
-.itinerary-panel{ flex:0 1 auto; min-height:0; max-height:46vh; overflow-y:auto; padding-bottom:16px;
+
+/* ---- floating results sheet: overlays the map, never resizes it ---- */
+.results-sheet{ position:absolute; left:16px; right:16px; bottom:16px; z-index:30;
+  display:flex; flex-direction:column; max-height:46%;
+  background:var(--dr-paper); border:1px solid var(--dr-line); border-radius:22px;
+  box-shadow:0 26px 64px -26px rgba(43,38,32,.62); overflow:hidden;
+  animation:drSheetIn .34s var(--dr-spring); }
+@keyframes drSheetIn{ from{ transform:translateY(16px); opacity:.4; } to{ transform:none; opacity:1; } }
+.results-sheet[hidden]{ display:none; }
+.sheet-head{ flex:0 0 auto; display:flex; align-items:stretch; cursor:pointer; }
+.sheet-head #dr-summary{ flex:1 1 auto; margin:0 !important; border-radius:0 !important; }
+.sheet-toggle{ flex:0 0 auto; width:46px; border:none; cursor:pointer; color:#fff;
+  background:var(--dr-grass-d); font-size:16px; display:grid; place-items:center;
+  transition:background .15s, transform .25s var(--dr-spring); }
+.sheet-toggle:hover{ background:#1A6B3E; }
+.results-sheet.collapsed .sheet-toggle{ transform:rotate(180deg); }
+.sheet-body{ flex:1 1 auto; min-height:0; overflow-y:auto; padding:14px 18px 16px;
   scrollbar-width:thin; scrollbar-color:var(--dr-line) transparent; }
-.itinerary-panel::-webkit-scrollbar{ width:9px; }
-.itinerary-panel::-webkit-scrollbar-thumb{ background:var(--dr-line); border-radius:9px;
+.sheet-body::-webkit-scrollbar{ width:9px; }
+.sheet-body::-webkit-scrollbar-thumb{ background:var(--dr-line); border-radius:9px;
   border:3px solid transparent; background-clip:content-box; }
+.results-sheet.collapsed .sheet-body{ display:none; }
+
+/* export-to-maps row inside the results sheet */
+.export-row{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:14px;
+  padding-bottom:14px; border-bottom:1px dashed var(--dr-line); }
+.export-row[hidden]{ display:none; }
+.export-label{ font-family:'Fredoka',sans-serif; font-weight:600; font-size:12px;
+  color:var(--dr-soft); margin-right:2px; }
+.ex-btn{ display:inline-flex; align-items:center; gap:5px; font-family:'DM Sans',sans-serif;
+  font-size:12.5px; font-weight:600; color:var(--dr-ink); text-decoration:none; cursor:pointer;
+  border:1.5px solid var(--dr-line); background:#FFFDF8; border-radius:999px; padding:6px 12px;
+  transition:transform .16s var(--dr-spring), border-color .16s, background .16s; }
+.ex-btn:hover{ transform:translateY(-2px); border-color:var(--dr-cobalt); background:#F0F4FF; }
+.ex-note{ flex-basis:100%; font-size:11px; color:var(--dr-soft); line-height:1.4; }
+.data-note{ margin-top:14px; padding-top:12px; border-top:1px dashed var(--dr-line);
+  font-size:10.5px; color:var(--dr-soft); line-height:1.45; }
 #dr-options{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
 #dr-options:empty{ display:none; }
 #dr-options .opt{ border:2px solid var(--dr-line); border-radius:var(--dr-r); padding:11px 14px;
@@ -191,8 +223,8 @@ details.dr-collapse .collapse-body{ padding:13px 15px; }
 .onboard p{ margin:0; font-size:12.5px; color:var(--dr-soft); line-height:1.5; }
 
 /* ---- loading: stride + 4-step stepper (State 2) ---- */
-#dr-loading{ position:absolute; inset:46px 0 0 0; z-index:20; display:none;
-  place-items:center; border-radius:0 0 26px 26px;
+#dr-loading{ position:absolute; inset:0; z-index:40; display:none;
+  place-items:center;
   background:radial-gradient(700px 320px at 50% 0%,#FBEFD6 0%,transparent 70%),#F6ECD9; }
 #dr-loading.on{ display:grid; animation:drFade .25s ease; }
 @keyframes drFade{ from{ opacity:0; } to{ opacity:1; } }
@@ -213,7 +245,7 @@ details.dr-collapse .collapse-body{ padding:13px 15px; }
   border-radius:3px; transition:background .4s ease; }
 .stepper .bar.fill{ background:var(--dr-grass); }
 /* State 1 — non-Paris graph load (inert for the Paris demo, built per brief) */
-#dr-mapping{ position:absolute; inset:46px 0 0 0; z-index:21; display:none; place-items:center;
+#dr-mapping{ position:absolute; inset:0; z-index:41; display:none; place-items:center;
   background:#F6ECD9; }
 #dr-mapping.on{ display:grid; }
 #dr-mapping .pulse{ width:18px;height:18px;border-radius:50%;background:var(--dr-grass);
@@ -229,17 +261,11 @@ details.dr-collapse .collapse-body{ padding:13px 15px; }
 
 /* ---- mobile: left panel → bottom drawer, full-screen map, coral FAB ---- */
 @media (max-width:768px){
-  .app-shell{ grid-template-columns:1fr; grid-template-rows:auto 1fr; height:100vh; }
-  .hero{ max-height:none; }
-  .hero .hero-art{ display:none; }
-  .hero .titan-chip{ position:static; margin-top:8px; align-self:flex-start; }
-  .right-col{ grid-column:1; grid-row:2; padding:0; gap:0; }
-  .map-container{ min-height:0; }
-  #dr-map .map-inner, #dr-loading, #dr-mapping{ inset:0; }
-  .itinerary-panel{ max-height:34vh; padding:0 14px 14px; }
-  .route-summary-bar{ padding:0 12px; }
+  .app-shell{ grid-template-columns:1fr; grid-template-rows:1fr; }
+  .right-col{ grid-column:1; grid-row:1; }
+  .results-sheet{ left:10px; right:10px; bottom:10px; max-height:56%; }
   .left-panel{ position:fixed; left:0; right:0; bottom:0; top:auto; z-index:200; width:100%;
-    height:auto; max-height:84vh; border-right:none; border-top-left-radius:26px;
+    height:auto; max-height:86vh; max-height:86dvh; border-right:none; border-top-left-radius:26px;
     border-top-right-radius:26px; box-shadow:0 -18px 44px -20px rgba(43,38,32,.4);
     transform:translateY(110%); transition:transform .32s var(--dr-spring);
     padding-top:8px; }
@@ -260,27 +286,6 @@ details.dr-collapse .collapse-body{ padding:13px 15px; }
   background:var(--dr-line); margin:2px auto 8px; } }
 
 @media (prefers-reduced-motion:reduce){ *{ animation:none !important; transition:none !important; } }
-"""
-
-
-def _compact_hero() -> str:
-    """Hero with the exact copy/badges/colors, tightened to ≤120px."""
-    return f"""
-<header class="hero">
-  <div class="hero-body">
-    <span class="loc-pill"><span class="dot"></span>Paris · walkable detours</span>
-    <h1>Spend your extra time on <span class="accent">discovery.</span></h1>
-    <p>Ordinary navigation minimizes time. DiscoverRoute detours past places that match
-       your taste — within a travel-time budget — and tells you why each one is on the path.</p>
-    <div class="badges">
-      <span>🗺️ OpenStreetMap data</span>
-      <span>🥐 A friendly local guide</span>
-      <span>✨ Tuned to your vibe</span>
-    </div>
-  </div>
-  <div class="hero-art">{design._HERO_SVG}</div>
-  <span class="titan-chip">running on a 1B model, in-Space</span>
-</header>
 """
 
 
@@ -310,6 +315,11 @@ def _left_panel() -> str:
        aria-label="Close controls">&times;</div>
 
   <div class="panel-scroll">
+  <div class="brand">
+    <span class="logo">🗺️</span>
+    <span class="bname">WanderLust</span>
+    <span class="titan-chip">1B · in-Space</span>
+  </div>
   <div class="vibe-block">
     <div class="dr-control combo" style="margin-bottom:0;">
       <label class="dr-label" for="dr-vibe">What's your vibe today?</label>
@@ -433,7 +443,6 @@ def index_html() -> str:
 </head>
 <body>
 <div class="gradio-container app-shell">
-  {_compact_hero()}
   {_left_panel()}
   <main class="right-col">
     <div class="map-container">
@@ -442,22 +451,27 @@ def index_html() -> str:
         <span style="font-family:'Fredoka',sans-serif;font-weight:600;">Mapping the streets…</span></div></div>
       <div id="dr-loading">{_loading_inner()}</div>
     </div>
-    <div class="route-summary-bar"><div id="dr-summary"></div></div>
-    <div class="itinerary-panel">
-      <div id="dr-onboard" class="onboard">
-        <div class="ob-emoji">🥐</div>
-        <div>
-          <h3>Ready when you are.</h3>
-          <p>Pick a vibe (or tap a chip), keep or tweak the Start &amp; Destination, then
-             hit <strong>Plan my route</strong>. I'll thread a detour past places that match —
-             and tell you why each one made the cut.</p>
-        </div>
+    <section class="results-sheet" id="results-sheet" hidden aria-label="Route details">
+      <div class="sheet-head" id="sheet-head">
+        <div id="dr-summary"></div>
+        <button class="sheet-toggle" id="sheet-toggle" aria-label="Collapse or expand details"
+                title="Collapse / expand">&#9662;</button>
       </div>
-      <div id="dr-options"></div>
-      <div id="dr-nodetour"></div>
-      <div id="dr-interp"></div>
-      <div id="dr-itin"></div>
-    </div>
+      <div class="sheet-body">
+        <div class="export-row" id="export-row" hidden>
+          <span class="export-label">Take it with you</span>
+          <a id="ex-gmaps" class="ex-btn" target="_blank" rel="noopener noreferrer">🗺️ Google&nbsp;Maps</a>
+          <a id="ex-apple" class="ex-btn" target="_blank" rel="noopener noreferrer">🍎 Apple&nbsp;Maps</a>
+          <button id="ex-gpx" class="ex-btn" type="button">⬇️ GPX file</button>
+          <span class="ex-note" id="ex-note"></span>
+        </div>
+        <div id="dr-options"></div>
+        <div id="dr-nodetour"></div>
+        <div id="dr-interp"></div>
+        <div id="dr-itin"></div>
+        <div class="data-note">{_provenance_line()}</div>
+      </div>
+    </section>
   </main>
 </div>
 <button class="fab" id="fab" aria-label="Open route controls">Plan</button>
@@ -626,6 +640,7 @@ function setStep(n) {
 function hideOnboard() { const o = $("dr-onboard"); if (o) o.style.display = "none"; }
 function startLoading() {
   hideOnboard();
+  hideSheet();
   $("dr-loading").classList.add("on");
   $("dr-summary").innerHTML = ""; $("dr-itin").innerHTML = "";
   $("dr-interp").innerHTML = ""; $("dr-options").innerHTML = ""; $("dr-nodetour").innerHTML = "";
@@ -636,8 +651,56 @@ function stopLoading() { clearInterval(stepTimer); setStep(3); $("dr-loading").c
 
 /* ---------- render ---------- */
 const REDUCE = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-let lastAlts = [], lastCats = [];
+let lastAlts = [], lastCats = [], geo = null, curExport = null;
 function renderMap(html) { $("dr-map").innerHTML = '<div class="map-inner">' + html + "</div>"; }
+
+/* ---------- export to maps (client-side; data already in the /plan payload) ---------- */
+function _ll(p) { return (+p[0]).toFixed(6) + "," + (+p[1]).toFixed(6); }
+function buildGmaps(start, end, wps, mode) {
+  const travel = mode === "bike" ? "bicycling" : "walking";
+  let u = "https://www.google.com/maps/dir/?api=1&origin=" + _ll(start) +
+          "&destination=" + _ll(end) + "&travelmode=" + travel;
+  const w = (wps || []).slice(0, 9).map(p => p.lat.toFixed(6) + "," + p.lon.toFixed(6));
+  if (w.length) u += "&waypoints=" + encodeURIComponent(w.join("|"));
+  return u;
+}
+function buildApple(start, end) {
+  return "https://maps.apple.com/?saddr=" + _ll(start) + "&daddr=" + _ll(end) + "&dirflg=w";
+}
+function _xml(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function buildGpx(name, start, end, wps, coords) {
+  const L = ['<?xml version="1.0" encoding="UTF-8"?>',
+    '<gpx version="1.1" creator="WanderLust" xmlns="http://www.topografix.com/GPX/1/1">',
+    "<metadata><name>" + _xml(name) + "</name></metadata>"];
+  if (start) L.push('<wpt lat="' + start[0].toFixed(6) + '" lon="' + start[1].toFixed(6) + '"><name>Start</name></wpt>');
+  (wps || []).forEach(p => L.push('<wpt lat="' + p.lat.toFixed(6) + '" lon="' + p.lon.toFixed(6) + '"><name>' + _xml(p.name) + "</name></wpt>"));
+  if (end) L.push('<wpt lat="' + end[0].toFixed(6) + '" lon="' + end[1].toFixed(6) + '"><name>Destination</name></wpt>');
+  L.push("<trk><name>" + _xml(name) + "</name><trkseg>");
+  (coords || []).forEach(c => L.push('<trkpt lat="' + (+c[0]).toFixed(6) + '" lon="' + (+c[1]).toFixed(6) + '"/>'));
+  L.push("</trkseg></trk></gpx>");
+  return L.join("\n");
+}
+function refreshExport() {
+  const row = $("export-row");
+  if (!row) return;
+  if (!geo || !geo.start || !geo.end || !curExport) { row.hidden = true; return; }
+  row.hidden = false;
+  const wps = curExport.waypoints || [];
+  $("ex-gmaps").href = buildGmaps(geo.start, geo.end, wps, geo.mode);
+  $("ex-apple").href = buildApple(geo.start, geo.end);
+  $("ex-note").textContent = (wps.length > 9
+    ? "Google Maps fits 9 stops — the GPX keeps all " + wps.length + ". " : "") +
+    "Apple Maps shows start → end only; the GPX keeps every stop.";
+}
+function downloadGpx() {
+  if (!geo || !curExport) return;
+  const gpx = buildGpx("WanderLust route", geo.start, geo.end, curExport.waypoints, curExport.coords);
+  const blob = new Blob([gpx], { type: "application/gpx+xml" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "wanderlust-route.gpx";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+}
 function enter(el) {
   if (!el || REDUCE) return;
   try { el.animate([{ transform: "translateY(10px)", opacity: 0.001 }, { transform: "none", opacity: 1 }],
@@ -661,10 +724,13 @@ function selectAlt(idx) {
   enter($("dr-summary")); enter($("dr-itin"));
   document.querySelectorAll("#dr-options .opt").forEach((o, i) =>
     o.classList.toggle("selected", i === idx));
+  curExport = a.export || null; refreshExport();
 }
 function renderResult(d) {
   hideOnboard();
-  if (d.error) { renderMap(d.map_html); toast("Hmm — " + d.error.split(".")[0] + "."); return; }
+  if (d.error) { hideSheet(); renderMap(d.map_html); toast(d.error); return; }
+  geo = { start: d.start, end: d.end, mode: d.mode,
+          start_label: d.start_label, end_label: d.end_label };
   $("dr-interp").innerHTML = md(d.interpretation_md);
   enter($("dr-interp"));
   if (d.no_detour) {
@@ -673,6 +739,8 @@ function renderResult(d) {
     $("dr-itin").innerHTML = md(d.itinerary_md);
     $("dr-nodetour").innerHTML = d.nodetour_html || "";
     lastAlts = []; lastCats = [];
+    curExport = d.export || null; refreshExport();
+    showSheet();
     return;
   }
   $("dr-nodetour").innerHTML = "";
@@ -685,10 +753,12 @@ function renderResult(d) {
       o.addEventListener("click", () => selectAlt(+o.dataset.i)));
   } else { $("dr-options").innerHTML = ""; }
   selectAlt(0);
+  showSheet();
 }
 
 /* ---------- plan ---------- */
 async function plan() {
+  closeDrawer();  // mobile: reveal the full-screen map + route
   // map-press bounce (reused micro-interaction)
   const mapEl = $("dr-map");
   if (mapEl) mapEl.animate(
@@ -733,6 +803,12 @@ const openDrawer = () => $("left-panel").classList.add("open");
 const closeDrawer = () => $("left-panel").classList.remove("open");
 $("fab").addEventListener("click", openDrawer);
 $("drawer-close").addEventListener("click", closeDrawer);
+
+/* ---------- floating results sheet (collapsible overlay) ---------- */
+function showSheet() { const s = $("results-sheet"); if (s) { s.hidden = false; s.classList.remove("collapsed"); } }
+function hideSheet() { const s = $("results-sheet"); if (s) s.hidden = true; }
+$("sheet-head").addEventListener("click", () => $("results-sheet").classList.toggle("collapsed"));
+$("ex-gpx").addEventListener("click", downloadGpx);
 
 /* ---------- organic bounce on interaction (delegated, capture phase) ---------- */
 document.addEventListener("click", (e) => {

@@ -116,10 +116,28 @@ def build_pois(place: str = config.PARIS_PLACE) -> pd.DataFrame:
 
 
 def main() -> None:
+    import json
+    from datetime import datetime, timezone
+
     df = build_pois()
     config.POIS_PATH.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(config.POIS_PATH, index=False)
     print(f"[build_pois] saved {len(df):,} POIs to {config.POIS_PATH}")
+
+    # Provenance manifest so the app can show an honest "data as of <date>" line.
+    n = max(1, len(df))
+    hours = int(df["opening_hours"].notna().sum())
+    manifest = {
+        "source": "OpenStreetMap",
+        "license": "ODbL — © OpenStreetMap contributors",
+        "city": "Paris",
+        "build_date": datetime.now(timezone.utc).date().isoformat(),
+        "poi_count": int(len(df)),
+        "opening_hours_coverage_pct": round(hours / n * 100, 1),
+    }
+    config.DATA_MANIFEST_PATH.write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    print(f"[build_pois] wrote manifest {config.DATA_MANIFEST_PATH}")
 
 
 if __name__ == "__main__":

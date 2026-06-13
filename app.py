@@ -28,8 +28,9 @@ def _alt_label(i: int, alt, plain) -> str:
     from collections import Counter
     top = Counter(p.category for p in alt.pois).most_common(2)
     flavor = ", ".join(c.replace("_", " ") for c, _ in top)
+    n = len(alt.pois)
     return (f"Option {i + 1} · {alt.discovery.distance_m / 1000:.1f} km · +{extra} min · "
-            f"{len(alt.pois)} stops ({flavor})")
+            f"{n} place{'' if n == 1 else 's'} ({flavor})")
 
 
 @app.api(name="suggest")
@@ -63,8 +64,15 @@ def plan(start: str, dest: str, mode: str = "walk", budget: float = 0.5,
     if result.error:
         return {
             "error": result.error,
-            "map_html": mapui.empty_map("Hmm — " + result.error.split(".")[0] + "."),
+            "map_html": mapui.empty_map("Hmm — " + result.error.split(". ")[0].rstrip(".") + "."),
         }
+
+    geo = {
+        "start": list(result.start) if result.start else None,
+        "end": list(result.end) if result.end else None,
+        "mode": (mode or "walk").lower(),
+        "start_label": start, "end_label": dest,
+    }
 
     alts = result.alternatives or []
     if not alts:  # honest no-detour (or budget 0): plain route + stump state
@@ -79,6 +87,8 @@ def plan(start: str, dest: str, mode: str = "walk", budget: float = 0.5,
             "nodetour_html": _nodetour_html(),
             "alternatives": [],
             "last_cats": [],
+            "export": _export_data(result.plain, []),
+            **geo,
         }
 
     alternatives = []
@@ -90,6 +100,7 @@ def plan(start: str, dest: str, mode: str = "walk", budget: float = 0.5,
                 start=result.start, end=result.end),
             "summary_md": alt.summary_md,
             "itinerary_md": alt.itinerary_md,
+            "export": _export_data(alt.discovery, alt.pois),
         })
 
     return {
@@ -98,6 +109,22 @@ def plan(start: str, dest: str, mode: str = "walk", budget: float = 0.5,
         "interpretation_md": result.interpretation_md,
         "alternatives": alternatives,
         "last_cats": [p.category for p in alts[0].pois],
+        **geo,
+    }
+
+
+def _export_data(route, pois) -> dict:
+    """Lat/lon waypoints + the real polyline, so the browser can build a Google/
+    Apple Maps link or a GPX file without re-planning."""
+    from discoverroute.data import taxonomy
+    return {
+        "waypoints": [
+            {"lat": round(p.lat, 6), "lon": round(p.lon, 6),
+             "name": taxonomy.display_label(p)}
+            for p in (pois or [])
+        ],
+        "coords": [[round(c[0], 6), round(c[1], 6)]
+                   for c in (getattr(route, "coords", None) or [])],
     }
 
 
