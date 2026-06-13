@@ -102,10 +102,16 @@ TRACE_REPO = os.environ.get(
 # the route can explore a little; the best-matching category maps to 1.0.
 AFFINITY_FLOOR = 0.15
 # Below this cosine-similarity span across categories, a vibe is treated as
-# off-domain/neutral rather than amplified into false preferences. Measured:
-# off-domain text (gibberish, "quantum physics") spans ~0.06-0.14, real vibes
-# ~0.30+, so the threshold sits between — at 0.04 the guard never fired.
-MIN_AFFINITY_SPAN = 0.18
+# off-domain/neutral rather than amplified into false preferences. Measured
+# (bge-small, 16-vibe battery): gibberish "asdfqwer" spans 0.081; the LOWEST
+# real vibe ("romantic evening stroll") spans 0.143; "take me somewhere
+# beautiful" 0.152, "brutalist architecture" 0.148. So 0.18 (the prior value)
+# wrongly neutralised genuine evocative vibes — collapsing them to an identical
+# generic grab-bag. 0.10 sits just above gibberish, rescuing real vibes while
+# still catching nonsense. (Abstract vibes have NO clean separation from
+# nonsense by span alone — "quantum physics lecture" also spans 0.143 — but a
+# weakly-themed route for them beats a deceptive default route.)
+MIN_AFFINITY_SPAN = 0.10
 
 
 # --- Adventurousness ---------------------------------------------------------

@@ -444,3 +444,28 @@ profile save round-trips. All green.
 **Status: COMPLETE, TESTED, DEPLOYMENT-READY**
 
 All code is ready for your review. The app is buildable, runnable, and deployable exactly as specified. All P0 + P1 features implemented and verified. No blocking issues identified.
+
+### Adversarial route-fit review (2026-06-13) — 16-query battery + 2 reviewers
+Ran 16 diverse vibes against the LIVE Space; user-advocate + skeptic agents judged
+fit. Converged findings, each fixed and grounded in measurement:
+
+1. **Neutral-fallback ate real vibes.** `MIN_AFFINITY_SPAN=0.18` (raised in the v2
+   "fixed ui" commit) collapsed "romantic evening stroll", "take me somewhere
+   beautiful", "brutalist architecture" to an identical generic grab-bag — the
+   SAME stops as nonsense input. Measured raw cosine spans: gibberish 0.081,
+   lowest real vibe 0.143. → lowered to **0.10** (just above gibberish; no clean
+   higher cut exists — "quantum physics" also spans 0.143).
+2. **Gloss keyword-bleed conflated categories.** "specialty coffee tour" tied
+   cafe(1.00)↔bakery(0.97) because the bakery gloss said "coffee roaster";
+   "quiet to read" pulled churches because the worship gloss said "quiet". →
+   removed "coffee roaster" from bakery gloss and "quiet" from worship gloss.
+3. **`tourism=attraction` junk magnet.** An escape room ("Le Donjon") surfaced in
+   5+ routes incl. monuments/worship/romantic. Confidence can't filter it
+   (conf=1.0, 7 tags). → `classify()` now admits a bare `tourism=attraction`
+   only if **notable** (wikidata/wikipedia/heritage); commercial venues drop out.
+   Required a POI parquet rebuild.
+
+Flagged, not yet fixed (follow-up): sparse-route silent failure (1 stop for
+"I'm hungry" on this corridor — needs a "few X on this stretch" UX message);
+`artwork` returns formal statues not murals (OSM artwork_type); AFFINITY_FLOOR
+leakage of off-vibe categories when on-vibe candidates run out.

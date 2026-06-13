@@ -49,12 +49,12 @@ CATEGORY_GLOSS: dict[str, str] = {
     "monument_historic": "a historic monument, statue, memorial or heritage site",
     "museum_gallery": "an art museum or gallery, culture and exhibitions",
     "artwork": "a piece of public art, street art or sculpture",
-    "place_of_worship": "a church, temple or quiet place of worship",
+    "place_of_worship": "a church, cathedral, temple or chapel for spirituality",
     "library": "a library, quiet reading and books",
     "bookshop": "an independent bookshop, browsing books",
     "theatre_cinema": "a theatre or cinema, performance and film",
     "cafe": "a cosy cafe or specialty coffee shop, espresso and a pause",
-    "bakery_food_shop": "a bakery, patisserie, coffee roaster, chocolate or fine-food shop",
+    "bakery_food_shop": "a bakery, patisserie, chocolate or fine-food shop",
     "restaurant": "a restaurant for a proper meal",
     "bar_pub": "a lively bar, pub or wine bar, drinks and atmosphere",
     "market": "a bustling open-air or covered market, food and stalls",
@@ -216,7 +216,16 @@ def classify(tags: dict) -> str | None:
             "musical_instrument", "second_hand", "frame", "photo"):
         return "specialty_shop"
     if has("tourism", "attraction", "artwork", "theme_park", "gallery"):
-        return "attraction"
+        # `tourism=attraction` is OSM's catch-all: it covers both famous sights
+        # AND commercial venues (escape rooms, mini-golf, ghost tours). The
+        # category gloss promises "a famous landmark or major sight", so admit a
+        # bare attraction only when it is *notable* — carries wikidata/wikipedia
+        # or a heritage listing. Confidence can't tell them apart (an escape room
+        # has name+website+hours → confidence 1.0); notability can.
+        if has("wikidata") or has("wikipedia") or has("heritage") \
+                or not has("tourism", "attraction"):  # theme_park/gallery/artwork stay
+            return "attraction"
+        return None
     return None
 
 
