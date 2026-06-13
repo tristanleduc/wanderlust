@@ -17,10 +17,23 @@ import shapely
 
 from discoverroute import config
 
-# Local equirectangular projection constants (metres per degree near Paris).
-_LAT0, _LON0 = config.PARIS_CENTER
+# Local equirectangular projection: metres per degree. Latitude is ~constant;
+# longitude shrinks with latitude, so the per-area origin sets the lon scale.
+# Paris is the default origin for the pre-baked table; on-demand cities pass
+# their own bbox-centre origin so distances stay accurate anywhere on Earth.
 _M_PER_DEG_LAT = 110_540.0
-_M_PER_DEG_LON = 111_320.0 * math.cos(math.radians(_LAT0))
+
+
+def _lon_scale(lat0: float) -> float:
+    return 111_320.0 * math.cos(math.radians(lat0))
+
+
+def to_metres(lat, lon, origin):
+    """Project (lat, lon) into local metres about ``origin`` = (lat0, lon0)."""
+    lat0, lon0 = origin
+    x = (np.asarray(lon) - lon0) * _lon_scale(lat0)
+    y = (np.asarray(lat) - lat0) * _M_PER_DEG_LAT
+    return x, y
 
 
 @dataclass
@@ -42,56 +55,70 @@ class POI:
     open_state: bool | None = None
 
 
-def _to_metres(lat, lon):
-    x = (np.asarray(lon) - _LON0) * _M_PER_DEG_LON
-    y = (np.asarray(lat) - _LAT0) * _M_PER_DEG_LAT
-    return x, y
+def index_table(df: pd.DataFrame, origin):
+    """Precompute metric coords (about ``origin``) + an STRtree on a POI frame.
 
-
-@functools.lru_cache(maxsize=1)
-def _load_table():
-    """Load the POI parquet once and precompute metric coordinates + points."""
-    if not config.POIS_PATH.exists():
-        raise FileNotFoundError(
-            f"POI table not found at {config.POIS_PATH}. "
-            "Run: python -m discoverroute.data.build_pois"
-        )
-    df = pd.read_parquet(config.POIS_PATH)
-    xs, ys = _to_metres(df["lat"].to_numpy(), df["lon"].to_numpy())
+    Returns (df_with_xy, points, tree). Used both for the cached Paris table and
+    for on-demand city tables (which pass their own bbox-centre origin)."""
+    xs, ys = to_metres(df["lat"].to_numpy(), df["lon"].to_numpy(), origin)
     df = df.assign(_x=xs, _y=ys)
     points = shapely.points(xs, ys)
     tree = shapely.STRtree(points)  # spatial index for fast corridor queries
     return df, points, tree
 
 
+@functools.lru_cache(maxsize=1)
+def _load_table():
+    """Load the pre-baked Paris POI parquet once, indexed about PARIS_CENTER."""
+    if not config.POIS_PATH.exists():
+        raise FileNotFoundError(
+            f"POI table not found at {config.POIS_PATH}. "
+            "Run: python -m discoverroute.data.build_pois"
+        )
+    df = pd.read_parquet(config.POIS_PATH)
+    return index_table(df, config.PARIS_CENTER)
+
+
 def load_pois() -> pd.DataFrame:
     return _load_table()[0]
 
 
-def _route_line_metres(coords: list[tuple[float, float]]):
-    """Shapely LineString of a (lat, lon) route in local metres."""
+def _route_line_metres(coords: list[tuple[float, float]], origin):
+    """Shapely LineString of a (lat, lon) route in local metres about ``origin``."""
     lats = [c[0] for c in coords]
     lons = [c[1] for c in coords]
-    xs, ys = _to_metres(lats, lons)
+    xs, ys = to_metres(lats, lons, origin)
     return shapely.linestrings(np.column_stack([xs, ys]))
 
 
 def corridor_pois(
     route_coords: list[tuple[float, float]],
     budget: float,
+    table=None,
+    origin=None,
     max_candidates: int = config.MAX_CANDIDATES,
 ) -> list[POI]:
     """POIs within the budget-scaled corridor around a route polyline.
 
-    Uses an STRtree spatial index (avoids scanning all ~30k POIs). When the
+    ``table``/``origin`` select the POI source: omitted => the pre-baked Paris
+    table; an on-demand city passes its own (df, points, tree) and bbox-centre
+    origin so the same code routes anywhere.
+
+    Uses an STRtree spatial index (avoids scanning all candidate POIs). When the
     corridor holds more than ``max_candidates``, keeps the ones *closest to the
     route* (geographically most relevant) rather than the best-tagged ones —
     so dense, well-mapped commercial strips don't crowd out nearby low-tag gems.
     """
-    df, points, tree = _load_table()
+    if table is None:
+        df, points, tree = _load_table()
+        origin = config.PARIS_CENTER
+    else:
+        df, points, tree = table
+    if tree is None or len(df) == 0:  # on-demand area with no mapped POIs
+        return []
     if not route_coords or len(route_coords) < 2:
         return []
-    line = _route_line_metres(route_coords)
+    line = _route_line_metres(route_coords, origin)
     halfwidth = config.corridor_halfwidth_m(budget)
 
     idx = tree.query(line, predicate="dwithin", distance=halfwidth)

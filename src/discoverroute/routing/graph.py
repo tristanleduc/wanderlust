@@ -61,16 +61,16 @@ def load_graph():
     return ox.load_graphml(config.GRAPH_WALK_PATH)
 
 
-@functools.lru_cache(maxsize=1)
-def graph_csr():
-    """Cached SciPy CSR adjacency (length-weighted) + node<->index maps.
+def build_csr(graph):
+    """SciPy CSR adjacency (length-weighted) + node<->index maps for any graph.
 
     Enables C-speed multi-source Dijkstra for the travel matrix instead of dozens
     of pure-Python networkx runs. Parallel edges collapse to their minimum length.
+    Built once per area (Paris via the cached singleton below; on-demand cities
+    cache it on their Area), so it is not re-derived per request.
     """
     from scipy.sparse import csr_matrix
 
-    graph = load_graph()
     nodes = list(graph.nodes())
     idx = {n: i for i, n in enumerate(nodes)}
     best: dict[tuple[int, int], float] = {}
@@ -86,54 +86,65 @@ def graph_csr():
     return csr, nodes, idx
 
 
+@functools.lru_cache(maxsize=1)
+def graph_csr():
+    """Cached CSR for the pre-baked Paris graph (singleton)."""
+    return build_csr(load_graph())
+
+
 @functools.lru_cache(maxsize=512)
 def geocode_point(query: str) -> tuple[float, float]:
     """Resolve a free-text address or 'lat, lon' string to a (lat, lon) point.
 
-    Cached: the demo defaults and repeated addresses don't re-hit Nominatim
-    (which rate-limits at ~1 req/s). Failures raise and are not cached.
-    Raises RouteError if it cannot be resolved or falls outside Paris.
+    Works worldwide: Paris places resolve instantly against the offline name
+    index, anywhere else goes through Nominatim. Cached so repeated addresses and
+    the demo defaults don't re-hit Nominatim (which rate-limits at ~1 req/s).
+    Failures raise (and are not cached).
     """
     query = (query or "").strip()
     if not query:
         raise RouteError("Empty location. Enter an address or 'lat, lon'.")
 
-    # Try "lat, lon" first, then the offline POI-name index (no network needed).
+    # 1) Explicit "lat, lon" — accept anywhere on Earth (sanity-checked below).
     latlon = _try_parse_latlon(query)
-    if latlon is None:
-        from discoverroute.routing.geocode import is_world_place, local_geocode
-
-        if is_world_place(query):
-            raise RouteError(
-                f"{query!r} looks like a place outside Paris — DiscoverRoute "
-                "covers Paris only. Try a Paris landmark (e.g. 'Louvre')."
-            )
-        latlon = local_geocode(query)
-    if latlon is None:
-        if os.environ.get(config.OFFLINE_ENV_VAR) == "1":
-            raise RouteError(
-                f"Could not find {query!r} in the local Paris place index "
-                f"(offline mode, {config.OFFLINE_ENV_VAR}=1). "
-                "Try a named Paris place (e.g. 'Jardin du Luxembourg') "
-                "or enter 'lat, lon'."
-            )
-        try:
-            lat, lon = ox.geocode(query)
-        except Exception as exc:  # noqa: BLE001 - surface a clean message
-            logger.warning("geocode failed for %r: %s: %s",
-                           query, type(exc).__name__, exc)
-            raise RouteError(
-                f"Could not find a location for {query!r}. "
-                "Try a more specific Paris address or enter 'lat, lon'."
-            ) from exc
-    else:
+    if latlon is not None:
         lat, lon = latlon
+    else:
+        from discoverroute.routing.geocode import local_geocode
 
-    if not config.in_paris(lat, lon):
-        raise RouteError(
-            f"Location {query!r} ({lat:.4f}, {lon:.4f}) is outside Paris. "
-            "DiscoverRoute v1 covers Paris only."
-        )
+        # 2) Offline Paris index. Online, consult it only for clearly Paris-bound
+        # queries (mention Paris/France) so a namesake POI can't hijack a real
+        # world query (a Paris shop named "Tokyo" must not answer "Tokyo"). In
+        # explicit offline mode the index is all we have, so it serves everything.
+        ql = query.lower()
+        paris_hint = "paris" in ql or "france" in ql
+        offline = os.environ.get(config.OFFLINE_ENV_VAR) == "1"
+        lat = lon = None
+        if paris_hint or offline:
+            hit = local_geocode(query)
+            if hit is not None:
+                lat, lon = hit
+        # 3) Nominatim for the rest of the world (and Paris addresses not in the
+        # offline index). Unavailable in offline mode.
+        if lat is None:
+            if offline:
+                raise RouteError(
+                    f"Could not find {query!r} in the local place index "
+                    f"(offline mode, {config.OFFLINE_ENV_VAR}=1). "
+                    "Try a named Paris place or enter 'lat, lon'."
+                )
+            try:
+                lat, lon = ox.geocode(query)
+            except Exception as exc:  # noqa: BLE001 - surface a clean message
+                logger.warning("geocode failed for %r: %s: %s",
+                               query, type(exc).__name__, exc)
+                raise RouteError(
+                    f"Could not find a location for {query!r}. "
+                    "Try a more specific address, a landmark, or 'lat, lon'."
+                ) from exc
+
+    if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+        raise RouteError(f"{query!r} resolved to an invalid coordinate.")
     return lat, lon
 
 

@@ -79,6 +79,21 @@ def corridor_halfwidth_m(budget: float) -> float:
     return CORRIDOR_BASE_M + CORRIDOR_BUDGET_M * max(0.0, budget)
 
 
+# --- Other cities (on-demand) ------------------------------------------------
+# Paris ships pre-baked (instant, offline). Any other city is fetched live from
+# OpenStreetMap at request time: we download only the bounding box spanning the
+# two endpoints (plus a margin), not the whole metropolis — turning a multi-GB
+# city download into a few-MB box that builds in seconds.
+ON_DEMAND_MARGIN_M = 900.0      # padding added around the A→B bbox (corridor room)
+# Reject on-demand requests whose endpoints are absurdly far apart: a giant bbox
+# would overrun the public OSM servers and the worker's memory. Paris (cached)
+# is exempt from this cap.
+MAX_ENDPOINT_DISTANCE_M = 25_000.0
+AREA_CACHE_SIZE = 4             # how many on-demand city areas to keep in memory
+# Time budget for a single on-demand OSM fetch (graph or one feature key).
+ON_DEMAND_FETCH_TIMEOUT = 60
+
+
 # --- Models (Brick 4 / 6) ----------------------------------------------------
 # Small text encoder for vibe -> category affinity (CPU-friendly, offline).
 EMBED_MODEL = "BAAI/bge-small-en-v1.5"

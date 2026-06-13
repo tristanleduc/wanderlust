@@ -9,6 +9,9 @@ shapely==2.1.2
 scikit-learn==1.9.0
 pyarrow==24.0.0
 folium==0.20.0
+# Accurate "open now" timezones for on-demand cities worldwide (graceful coarse
+# longitude fallback if absent — see routing/area._coarse_tz).
+timezonefinder>=6.5
 
 # UI — 6.18 introduces gradio.Server (custom-frontend app-shell; see app.py)
 gradio==6.18.0

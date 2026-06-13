@@ -47,19 +47,21 @@ class TravelMatrix:
         return self.nodes[self._index[self._key(point)]]
 
 
-def build_matrix(graph, points, mode, cutoff_m) -> TravelMatrix:
+def build_matrix(graph, points, mode, cutoff_m, csr=None) -> TravelMatrix:
     """Build a travel matrix over ``points`` (list of (lat, lon)).
 
     ``points[0]`` and ``points[1]`` are conventionally start and end. Distances
     come from one C-speed multi-source SciPy Dijkstra bounded by ``cutoff_m``;
     pairs farther than the cutoff stay INF (treated as infeasible by the solver).
+    ``csr`` is the (csr, nodes, idx) triple for ``graph`` — pass the area's so
+    on-demand cities use their own network; omitted => the cached Paris CSR.
     """
     lats = np.array([p[0] for p in points])
     lons = np.array([p[1] for p in points])
     nodes = ox.distance.nearest_nodes(graph, X=lons, Y=lats)
     nodes = [int(n) for n in np.atleast_1d(nodes)]
 
-    csr, _, idx = g.graph_csr()
+    csr, _, idx = csr if csr is not None else g.graph_csr()
     anchor_idx = [idx[n] for n in nodes]
     # one call computes all sources -> all nodes, bounded by the cutoff
     dmat = dijkstra(csr, directed=True, indices=anchor_idx, limit=cutoff_m)

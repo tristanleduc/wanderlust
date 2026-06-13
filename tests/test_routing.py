@@ -30,9 +30,15 @@ def test_in_paris_bounds():
     assert not config.in_paris(*LONDON)
 
 
-def test_geocode_rejects_out_of_bounds():
+def test_geocode_accepts_world_latlon():
+    # World support: an explicit lat/lon anywhere on Earth resolves (no network).
+    lat, lon = g.geocode_point(f"{LONDON[0]}, {LONDON[1]}")
+    assert abs(lat - LONDON[0]) < 1e-6 and abs(lon - LONDON[1]) < 1e-6
+
+
+def test_geocode_rejects_invalid_latlon():
     with pytest.raises(RouteError):
-        g.geocode_point(f"{LONDON[0]}, {LONDON[1]}")
+        g.geocode_point("123.0, 999.0")  # out of valid coordinate range
 
 
 def test_geocode_empty():

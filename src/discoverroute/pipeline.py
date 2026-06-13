@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from discoverroute import config
 
 logger = logging.getLogger("discoverroute")
+from discoverroute.routing import area as area_mod
 from discoverroute.routing import graph as g
 from discoverroute.routing import matrix as mx
 from discoverroute.routing import orienteering as ot
@@ -104,9 +105,13 @@ def _plan_route_impl(
     budget = slider_budget
     adventurousness = max(0.0, min(float(adventurousness), 1.0))
     try:
-        graph = g.load_graph()
         start = g.geocode_point(start_query)
         end = g.geocode_point(dest_query)
+        # Pick the area: Paris is pre-baked/instant; any other city is fetched
+        # live from OSM (only the box spanning the two endpoints).
+        area = area_mod.resolve_area(
+            start, end, label=_city_label(start_query, dest_query))
+        graph = area.graph
         plain = g.plain_route(graph, *start, *end, mode=mode)
     except RouteError as exc:
         return PlanResult(None, None, [], None, None, "", "", error=str(exc))
@@ -170,7 +175,7 @@ def _plan_route_impl(
     try:
         shortlist, matrix, time_fn = _prepare_discovery(
             graph, start, end, plain, mode, budget, weights, adventurousness,
-            posture=posture, exclude_famous=exclude_famous)
+            posture=posture, exclude_famous=exclude_famous, area=area)
         for _ in range(max(1, n_alternatives)):
             if shortlist is None:
                 break
@@ -229,7 +234,7 @@ def _plan_route_impl(
 
 
 def _prepare_discovery(graph, start, end, plain, mode, budget, weights, adventurousness,
-                       posture=None, exclude_famous=False):
+                       posture=None, exclude_famous=False, area=None):
     """Corridor → score → shortlist → real travel matrix. Done ONCE per request.
 
     The expensive step is the matrix (cutoff-bounded multi-source Dijkstra), so we
@@ -237,7 +242,9 @@ def _prepare_discovery(graph, start, end, plain, mode, budget, weights, adventur
     alternatives differ only in which shortlisted POIs the solver may pick.
     Returns (shortlist, matrix, time_fn) or (None, None, None).
     """
-    candidates = poimod.corridor_pois(plain.coords, budget)
+    table = area.table if area is not None else None
+    origin = area.origin if area is not None else None
+    candidates = poimod.corridor_pois(plain.coords, budget, table=table, origin=origin)
     if not candidates:
         return None, None, None
     # Discovery vibes ("hidden gems"): drop famous, well-documented sights so the
@@ -250,8 +257,11 @@ def _prepare_discovery(graph, start, end, plain, mode, budget, weights, adventur
     scoring.score_pois(candidates, weights, adventurousness)
     # Open-now awareness: demote places that are closed right now (heavily for
     # stop-at categories, mildly for pass-by; unknown hours left untouched).
+    from datetime import datetime
+
     from discoverroute.routing import hours
-    hours.apply_open_now(candidates, posture)
+    when = datetime.now(area.tz) if area is not None else None
+    hours.apply_open_now(candidates, posture, when=when)
     ranked = sorted((p for p in candidates if p.score > 0),
                     key=lambda p: p.score, reverse=True)
     # Dedup within a route: the same OSM place can appear as multiple rows
@@ -273,7 +283,8 @@ def _prepare_discovery(graph, start, end, plain, mode, budget, weights, adventur
 
     points = [start, end] + [(p.lat, p.lon) for p in shortlist]
     cutoff_m = (1.0 + budget) * plain.distance_m
-    matrix = mx.build_matrix(graph, points, mode, cutoff_m)
+    csr = area.csr if area is not None else None
+    matrix = mx.build_matrix(graph, points, mode, cutoff_m, csr=csr)
     return shortlist, matrix, matrix.time_fn()
 
 
@@ -311,6 +322,19 @@ def _solve_one(graph, start, end, plain, mode, budget, shortlist, matrix, time_f
     discovery = g.stitch_route(graph, waypoint_nodes, mode, result.ordered_pois)
     discovery.dwell_s = result.dwell_time_s
     return discovery, result.ordered_pois
+
+
+def _city_label(start_query: str, dest_query: str) -> str:
+    """A friendly area name for on-demand fetch logs/messages.
+
+    Uses the trailing comma-separated token of an endpoint (often the city), e.g.
+    "Tower Bridge, London" → "London". Cosmetic only — never affects routing.
+    """
+    for q in (dest_query, start_query):
+        parts = [p.strip() for p in (q or "").split(",") if p.strip()]
+        if len(parts) >= 2:
+            return parts[-1]
+    return "this area"
 
 
 def _profile_explanation(weights) -> str:

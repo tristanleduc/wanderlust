@@ -26,9 +26,14 @@ def test_uppercase_mode_normalized():
     assert plan_route(S, D, mode="WALK").error is None
 
 
-def test_world_city_rejected_not_namesake_routed():
-    err = plan_route("London", "Tokyo", vibe="quiet").error
-    assert err and "Paris" in err
+def test_far_apart_endpoints_rejected_not_namesake_routed():
+    # World support: endpoints on different continents can't form one walkable
+    # discovery route. Resolve via lat/lon (no network) so the distance cap fires
+    # — and crucially we get an honest error, never a fake namesake route.
+    london, tokyo = "51.5079, -0.0877", "35.6586, 139.7454"
+    r = plan_route(london, tokyo, vibe="quiet")
+    assert r.error and "far" in r.error.lower()
+    assert r.discovery is None and not r.pois
 
 
 def test_budget_zero_is_plain_route_even_with_pace_word():
