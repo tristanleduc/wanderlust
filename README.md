@@ -5,10 +5,11 @@ colorFrom: blue
 colorTo: green
 sdk: gradio
 sdk_version: 6.18.0
+python_version: '3.12'
 app_file: app.py
 pinned: true
 license: apache-2.0
-short_description: Discovery routing — get from A to B through places you'll love
+short_description: A-to-B routes through places you'll love
 tags:
   - backyard-ai-track
   - badge-off-brand
