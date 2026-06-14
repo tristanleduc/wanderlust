@@ -47,6 +47,23 @@ def test_llm_json_extract_and_validate():
     assert llm_vibe._extract_json("sorry, I cannot do that") is None
 
 
+def test_llm_rejects_degenerate_weights():
+    """All-zero / all-equal extractions pass _validate but carry no taste signal,
+    so _is_degenerate must flag them (the live trace showed a real all-zero row for
+    'quiet green wander' that the router then ignored)."""
+    keys = llm_vibe.REQUIRED_KEYS
+    all_zero = {k: 0.0 for k in keys}
+    all_zero["detour_budget_multiplier"] = 0.5
+    assert llm_vibe._is_degenerate(all_zero) is True
+    all_equal = {k: 0.5 for k in keys}
+    all_equal["detour_budget_multiplier"] = 1.0
+    assert llm_vibe._is_degenerate(all_equal) is True
+    # a real, differentiated weighting is kept
+    good = {k: 0.1 for k in keys}
+    good.update(park=0.9, green=0.9, quiet=0.7, detour_budget_multiplier=1.2)
+    assert llm_vibe._is_degenerate(good) is False
+
+
 def test_resolve_affinity_neutral_on_empty():
     aff, src = affinity.resolve_affinity("")
     assert src == "neutral"

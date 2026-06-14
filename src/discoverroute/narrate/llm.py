@@ -46,21 +46,40 @@ def _load():
 
 @_gpu
 def run_inference(messages: list[dict], max_new_tokens: int = 320,
-                  temperature: float = 0.7) -> str:
-    """Run a chat completion. ``messages`` = [{"role","content"}, ...]."""
+                  temperature: float | None = None,
+                  enable_thinking: bool = False) -> str:
+    """Run a chat completion. ``messages`` = [{"role","content"}, ...].
+
+    MiniCPM5-1B is a hybrid-reasoning model (verified on the model card: built-in
+    ``<think>`` template, switched by ``enable_thinking``). With thinking ON it
+    first emits a ``<think>…</think>`` reasoning block and *then* the answer; we
+    strip the block and return only the answer, so callers parse clean output.
+    With thinking OFF the template injects an empty block and there's nothing to
+    strip — the fast direct path.
+
+    ``temperature`` defaults to the model card's recommended sampling for the
+    chosen mode (Think 0.9 / No-Think 0.7), both with top_p 0.95.
+    """
     tok, model = _load()
-    # MiniCPM5 is a hybrid-reasoning model: with thinking on it emits a
-    # <think>...</think> block first, which would devour the JSON/narration token
-    # budget and leave nothing usable. We want the fast direct answer, so disable
-    # it explicitly (the kwarg is ignored harmlessly by templates that lack it).
+    if temperature is None:
+        temperature = 0.9 if enable_thinking else 0.7
     text = tok.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True, enable_thinking=False
+        messages, tokenize=False, add_generation_prompt=True,
+        enable_thinking=enable_thinking,
     )
     inputs = tok([text], return_tensors="pt").to(model.device)
-    # MiniCPM5 "no-think" recommended sampling: temperature 0.7, top_p 0.95.
     out = model.generate(
         **inputs, max_new_tokens=max_new_tokens,
         temperature=temperature, top_p=0.95, top_k=20, do_sample=True,
     )
     gen = out[0][inputs.input_ids.shape[1]:]
-    return tok.decode(gen, skip_special_tokens=True).strip()
+    decoded = tok.decode(gen, skip_special_tokens=True).strip()
+    if enable_thinking:
+        # Keep only what follows the reasoning block. If the model never closed
+        # </think> (reasoning ran to the token budget), there's no usable answer —
+        # return "" so the caller falls back rather than parsing half a thought.
+        if "</think>" in decoded:
+            decoded = decoded.split("</think>")[-1].strip()
+        else:
+            decoded = ""
+    return decoded

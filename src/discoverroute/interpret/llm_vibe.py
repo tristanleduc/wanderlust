@@ -15,15 +15,28 @@ import time
 
 from discoverroute.interpret import mapping
 
+# NOTE on prompt design: the previous schema literally showed each key as
+# `"cafe": 0.0-1.0`, and the 1B model parroted the `0.0` back as the value —
+# returning an all-zero weighting that the router can't act on (a "quiet green
+# wander" came out tasteless). We now state the 0..1 meaning in words, forbid the
+# all-zero / all-equal degenerate answers explicitly, and give ONE worked example
+# (a vibe unrelated to any preset) so the model copies the *shape*, not a value.
 SYSTEM_PROMPT = (
-    "You are a routing preference extractor.\n"
-    "Output ONLY valid JSON. No prose, no explanation, no markdown.\n"
-    'Schema: {"cafe": 0.0-1.0, "park": 0.0-1.0, "bookshop": 0.0-1.0, '
-    '"museum": 0.0-1.0, "bakery": 0.0-1.0, "restaurant": 0.0-1.0, '
-    '"bar": 0.0-1.0, "viewpoint": 0.0-1.0, "market": 0.0-1.0, '
-    '"quiet": 0.0-1.0, "green": 0.0-1.0, "historic": 0.0-1.0, '
-    '"busy": 0.0-1.0, "detour_budget_multiplier": 0.5-2.0}\n'
-    "All keys required. Values reflect how strongly the vibe matches each."
+    "You convert a walk/ride 'vibe' into place-type preference weights for a "
+    "routing engine.\n"
+    "For each place type, score how strongly the vibe calls for it: 0 means "
+    "irrelevant, 1 means central to the vibe. Most vibes strongly want only two "
+    "to four types — give those 0.7-1.0 and keep the rest low. Never set every "
+    "value to 0, and never give every type the same value.\n"
+    "detour_budget_multiplier is how far off the direct line the vibe justifies: "
+    "0.5 = stay direct, 2.0 = big detours welcome.\n"
+    "Reply with ONLY a JSON object (no prose, no markdown) using EXACTLY these "
+    "keys: cafe, park, bookshop, museum, bakery, restaurant, bar, viewpoint, "
+    "market, quiet, green, historic, busy, detour_budget_multiplier.\n"
+    "Example — for the vibe \"sunny riverside picnic\":\n"
+    '{"cafe":0.4,"park":0.9,"bookshop":0.1,"museum":0.1,"bakery":0.6,'
+    '"restaurant":0.2,"bar":0.1,"viewpoint":0.7,"market":0.5,"quiet":0.6,'
+    '"green":0.9,"historic":0.2,"busy":0.1,"detour_budget_multiplier":1.2}'
 )
 
 REQUIRED_KEYS = (
@@ -71,6 +84,22 @@ def _validate(obj: dict | None) -> dict | None:
     return out
 
 
+def _is_degenerate(weights: dict[str, float]) -> bool:
+    """A weighting carries no usable taste signal if every place-type score is
+    zero, or they're all equal (the model emitted a flat default). Such output
+    passed ``_validate`` but tells the router nothing — so we reject it and let
+    the dispatcher fall through to the embedding tier, which *does* read the vibe.
+    (``detour_budget_multiplier`` is excluded — it isn't a place-type score.)"""
+    cats = [v for k, v in weights.items() if k != "detour_budget_multiplier"]
+    if not cats:
+        return True
+    if max(cats) <= 0.0:                     # all-zero
+        return True
+    if max(cats) - min(cats) < 1e-9:         # all-equal → no differentiation
+        return True
+    return False
+
+
 @functools.lru_cache(maxsize=256)
 def extract(vibe: str) -> dict | None:
     """Return ``{"affinity", "budget_multiplier", "raw"}`` or ``None``.
@@ -90,12 +119,18 @@ def extract(vibe: str) -> dict | None:
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"Extract routing weights for this vibe: {vibe}"},
+        {"role": "user", "content": f"Vibe: {vibe}\nReturn the JSON weights now."},
     ]
     t0 = time.time()
     try:
         from discoverroute.narrate.llm import run_inference
-        raw_text = run_inference(messages, max_new_tokens=160, temperature=0.2)
+        # Reasoning pass: MiniCPM5-1B is hybrid-reasoning, and scoring a fuzzy vibe
+        # across 14 types is exactly the kind of short deliberation a 1B does better
+        # with than off-the-cuff. enable_thinking=True lets it reason, then emit the
+        # JSON; run_inference strips the <think> block and returns only the JSON. The
+        # budget covers the reasoning + the ~120-token object (truncated reasoning →
+        # empty answer → clean fallback).
+        raw_text = run_inference(messages, max_new_tokens=512, enable_thinking=True)
     except Exception as exc:  # noqa: BLE001 - never break interpretation
         latency = int((time.time() - t0) * 1000)
         trace.log_trace("vibe_extraction", {"vibe": vibe},
@@ -105,9 +140,12 @@ def extract(vibe: str) -> dict | None:
 
     latency = int((time.time() - t0) * 1000)
     parsed = _validate(_extract_json(raw_text))
-    if parsed is None:
+    # Reject unparseable OR degenerate (all-zero / all-equal) output: both leave the
+    # router with no taste signal, so fall through to the embedding tier instead.
+    if parsed is None or _is_degenerate(parsed):
         trace.log_trace("vibe_extraction", {"vibe": vibe},
-                        {"raw": raw_text}, latency, used_fallback=True)
+                        {"raw": raw_text, "degenerate": parsed is not None},
+                        latency, used_fallback=True)
         return None
 
     affinity = mapping.brief_scores_to_affinity(parsed)
