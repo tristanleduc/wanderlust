@@ -101,6 +101,21 @@ def test_geo_gazetteer_allows_landmarks_but_not_eiffel():
     assert not ok2 and any("Eiffel" in o for o in off2)
 
 
+def test_gate_ignores_art_movements_and_events():
+    """Capitalized non-places (art movements, historical events, sentence-starters)
+    must not trip the gate — they were sinking whole narrations live
+    ('Impressionism', 'French Revolution', 'Remember')."""
+    text = ("Remember the French Revolution as you pass Jardin des Plantes; the "
+            "Impressionism and Impressionist spirit lingers here.")
+    ok, off = grounding.verify_grounded(text, POIS, start_label="Bastille")
+    assert ok, off
+    # but a genuinely invented venue in the same prose still fails
+    ok2, off2 = grounding.verify_grounded(
+        "Remember the Impressionists at Café des Mensonges near Jardin des Plantes.",
+        POIS, start_label="Bastille")
+    assert not ok2 and any("Mensonges" in o for o in off2)
+
+
 def test_geo_gazetteer_still_blocks_invented_venue():
     """Loosening for districts must NOT let an invented venue through."""
     from discoverroute.narrate import gazetteer

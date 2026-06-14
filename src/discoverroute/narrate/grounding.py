@@ -91,6 +91,22 @@ _COMMON = {
     "monument", "memorial", "library", "theatre", "theater", "cinema", "hall",
     "station", "court", "fountain", "statue", "tower", "gate", "house", "centre",
     "center", "city", "town", "village", "waterfront",
+    # art movements / styles a guide invokes — capitalized but NOT venues (the
+    # gate was rejecting whole narrations over "Impressionism"/"Impressionist").
+    "impressionism", "impressionist", "impressionists", "cubism", "cubist",
+    "surrealism", "surrealist", "expressionism", "expressionist", "romanticism",
+    "modernism", "minimalism", "realism", "symbolism", "futurism", "dadaism",
+    "fauvism", "pointillism", "abstraction", "bauhaus",
+    # historical events / periods / eras (capitalized, not places): "French
+    # Revolution", "the Belle Époque" etc.
+    "revolution", "revolutions", "empire", "republic", "monarchy", "reign",
+    "dynasty", "era", "age", "antiquity", "enlightenment", "reformation",
+    "belle", "époque", "epoque", "renaissance", "restoration", "occupation",
+    "war", "wars",
+    # more sentence-starters / imperatives the model opens clauses with
+    "remember", "consider", "watch", "listen", "recall", "observe", "sense",
+    "perhaps", "maybe", "indeed", "history", "culture", "tradition", "legend",
+    "myth", "legends", "myths", "everywhere", "somewhere", "anywhere",
 }
 
 _TOKEN_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ0-9'’.\-]*")
