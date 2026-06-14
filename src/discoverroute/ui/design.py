@@ -101,7 +101,6 @@ DR_CSS = """
   width:26px;height:26px;border-radius:50%;background:#fff;border:4px solid var(--dr-cobalt);
   box-shadow:0 4px 10px -2px rgba(43,38,32,.4); transition:transform .15s var(--dr-spring); }
 .gradio-container input[type=range]:active::-webkit-slider-thumb{ transform:scale(1.22); }
-.dr-slider.green input[type=range]::-webkit-slider-thumb{ border-color:var(--dr-grass); }
 .gradio-container input[type=range]{ accent-color:var(--dr-cobalt); }
 #dr-budget input[type=range]{ accent-color:var(--dr-coral); }
 #dr-budget input[type=range]::-webkit-slider-thumb{ border-color:var(--dr-coral); }

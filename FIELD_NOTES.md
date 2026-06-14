@@ -1,6 +1,6 @@
-# Field Notes: Building DiscoverRoute
+# Field Notes: Building WanderLust
 
-> **Draft.** Written from the build log (`PROGRESS.md`) and the Space card (`README.md`) for the Build Small Hackathon's *Field Notes* badge. Review, personalize, and add your own voice before publishing.
+> **Draft** for the Build Small Hackathon's `achievement:fieldnotes` (Track 1 — Backyard AI).
 
 ## The inversion
 

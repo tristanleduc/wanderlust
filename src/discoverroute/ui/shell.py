@@ -131,14 +131,6 @@ body{ font-family:'DM Sans',ui-sans-serif,system-ui,sans-serif; color:var(--dr-i
 .vibe-chips .chip.on{ border-color:var(--dr-coral); background:var(--dr-coral); color:#fff;
   box-shadow:0 8px 18px -8px rgba(255,106,82,.8); }
 
-.dr-slider{ display:flex; align-items:center; gap:12px; }
-.dr-slider input[type=range]{ flex:1; }
-.dr-slider output{ font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--dr-soft);
-  min-width:34px; text-align:right; padding:2px 7px; background:#FFFDF8; border:1px solid var(--dr-line);
-  border-radius:8px; }
-.slider-ends{ display:flex; justify-content:space-between; font-size:10.5px; color:var(--dr-soft);
-  margin-top:3px; letter-spacing:.02em; }
-
 /* condensed single-row sliders: label · min-cap · slider · max-cap · value */
 .dr-slider-1{ display:flex; align-items:center; gap:8px; }
 .dr-slider-1 > .dr-label{ margin:0; flex:0 0 auto; width:58px; font-size:12.5px; line-height:1.1; }
@@ -249,28 +241,12 @@ details.dr-collapse .collapse-body{ padding:13px 15px; }
   color:var(--dr-ink); }
 .onboard p{ margin:0; font-size:12.5px; color:var(--dr-soft); line-height:1.5; }
 
-/* ---- loading: stride + 4-step stepper (State 2) ---- */
+/* ---- loading: live-map teaser (State 2) ---- */
 #dr-loading{ position:absolute; inset:0; z-index:40; display:none;
   place-items:center;
   background:radial-gradient(700px 320px at 50% 0%,#FBEFD6 0%,transparent 70%),#F6ECD9; }
 #dr-loading.on{ display:grid; animation:drFade .25s ease; }
 @keyframes drFade{ from{ opacity:0; } to{ opacity:1; } }
-.stepper{ display:flex; align-items:flex-start; gap:0; margin-top:22px; }
-.stepper .step{ display:flex; flex-direction:column; align-items:center; gap:8px; width:118px;
-  opacity:.38; transition:opacity .4s ease; }
-.stepper .step.active{ opacity:1; }
-.stepper .step .pip{ width:16px; height:16px; border-radius:50%; background:#CFE8D8;
-  transition:background .4s ease, transform .4s var(--dr-spring); position:relative; }
-.stepper .step.active .pip{ background:var(--dr-grass); transform:scale(1.18);
-  box-shadow:0 4px 10px -3px rgba(47,164,99,.7); }
-.stepper .step.current .pip::after{ content:''; position:absolute; inset:-5px; border-radius:50%;
-  border:2px solid var(--dr-grass); opacity:.5; animation:drRing 1.1s ease-out infinite; }
-@keyframes drRing{ 0%{ transform:scale(.7); opacity:.6; } 100%{ transform:scale(1.5); opacity:0; } }
-.stepper .step .lbl{ font-size:11.5px; font-family:'DM Sans',sans-serif; color:var(--dr-ink);
-  text-align:center; line-height:1.25; }
-.stepper .bar{ flex:1; height:3px; min-width:22px; margin-top:7px; background:#CFE8D8;
-  border-radius:3px; transition:background .4s ease; }
-.stepper .bar.fill{ background:var(--dr-grass); }
 /* State 1 — non-Paris graph load (inert for the Paris demo, built per brief) */
 #dr-mapping{ position:absolute; inset:0; z-index:41; display:none; place-items:center;
   background:#F6ECD9; }
@@ -707,17 +683,7 @@ function wireCombo(inputId, listId) {
 wireCombo("dr-start", "dr-start-list");
 wireCombo("dr-dest", "dr-dest-list");
 
-/* ---------- 4-step loader (paced to the pipeline phases) ---------- */
-let stepTimer = null;
-function setStep(n) {
-  document.querySelectorAll(".stepper .step").forEach(s => {
-    const i = +s.dataset.step;
-    s.classList.toggle("active", i <= n);
-    s.classList.toggle("current", i === n);
-  });
-  document.querySelectorAll(".stepper .bar").forEach(b =>
-    b.classList.toggle("fill", +b.dataset.bar <= n));
-}
+/* ---------- loader (live-map teaser; CSS-animated while visible) ---------- */
 function hideOnboard() { const o = $("dr-onboard"); if (o) o.style.display = "none"; }
 function startLoading() {
   hideOnboard();
@@ -725,10 +691,8 @@ function startLoading() {
   $("dr-loading").classList.add("on");
   $("dr-summary").innerHTML = ""; $("dr-itin").innerHTML = "";
   $("dr-interp").innerHTML = ""; $("dr-options").innerHTML = ""; $("dr-nodetour").innerHTML = "";
-  let n = 0; setStep(0);
-  stepTimer = setInterval(() => { n = Math.min(n + 1, 3); setStep(n); }, 1200);
 }
-function stopLoading() { clearInterval(stepTimer); setStep(3); $("dr-loading").classList.remove("on"); }
+function stopLoading() { $("dr-loading").classList.remove("on"); }
 
 /* ---------- render ---------- */
 const REDUCE = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
