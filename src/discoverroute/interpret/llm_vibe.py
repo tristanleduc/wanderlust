@@ -121,19 +121,22 @@ def extract(vibe: str) -> dict | None:
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"Vibe: {vibe}\nReturn the JSON weights now."},
     ]
+    from discoverroute import config
+    think = config.VIBE_THINKING
+    meta_in = {"vibe": vibe, "thinking": think}  # mode recorded for the A/B
     t0 = time.time()
     try:
         from discoverroute.narrate.llm import run_inference
-        # Reasoning pass: MiniCPM5-1B is hybrid-reasoning, and scoring a fuzzy vibe
-        # across 14 types is exactly the kind of short deliberation a 1B does better
-        # with than off-the-cuff. enable_thinking=True lets it reason, then emit the
-        # JSON; run_inference strips the <think> block and returns only the JSON. The
-        # budget covers the reasoning + the ~120-token object (truncated reasoning →
-        # empty answer → clean fallback).
-        raw_text = run_inference(messages, max_new_tokens=512, enable_thinking=True)
+        # A/B (config.VIBE_THINKING): with thinking ON, MiniCPM5-1B reasons before
+        # emitting JSON — but the <think> block + the ~120-token object need real
+        # room, so give it 1024 (512 ran past the budget and returned empty in the
+        # first live test). No-think is lean and fast. run_inference strips the
+        # <think> block; a truncated/unclosed reasoning → empty answer → fallback.
+        budget = 1024 if think else 256
+        raw_text = run_inference(messages, max_new_tokens=budget, enable_thinking=think)
     except Exception as exc:  # noqa: BLE001 - never break interpretation
         latency = int((time.time() - t0) * 1000)
-        trace.log_trace("vibe_extraction", {"vibe": vibe},
+        trace.log_trace("vibe_extraction", meta_in,
                         {"error": f"{type(exc).__name__}: {exc}"},
                         latency, used_fallback=True)
         return None
@@ -143,13 +146,13 @@ def extract(vibe: str) -> dict | None:
     # Reject unparseable OR degenerate (all-zero / all-equal) output: both leave the
     # router with no taste signal, so fall through to the embedding tier instead.
     if parsed is None or _is_degenerate(parsed):
-        trace.log_trace("vibe_extraction", {"vibe": vibe},
+        trace.log_trace("vibe_extraction", meta_in,
                         {"raw": raw_text, "degenerate": parsed is not None},
                         latency, used_fallback=True)
         return None
 
     affinity = mapping.brief_scores_to_affinity(parsed)
     budget_mult = max(0.5, min(2.0, parsed["detour_budget_multiplier"]))
-    trace.log_trace("vibe_extraction", {"vibe": vibe}, parsed,
+    trace.log_trace("vibe_extraction", meta_in, parsed,
                     latency, used_fallback=False)
     return {"affinity": affinity, "budget_multiplier": budget_mult, "raw": parsed}

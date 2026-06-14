@@ -149,6 +149,16 @@ EMBED_QUERY_INSTRUCTION = "Represent this sentence for searching relevant passag
 # LlamaForCausalLM architecture — no custom kernels.
 LLM_MODEL = "openbmb/MiniCPM5-1B"
 
+# A/B toggle for Call 1 (vibe→weights): run the model's REASONING pass
+# (enable_thinking, MiniCPM5-1B is hybrid-reasoning) or the fast no-think path.
+# Thinking may score a fuzzy vibe better but needs a far bigger token budget and
+# more of the ZeroGPU slice. Flip the Space variable DISCOVERROUTE_VIBE_THINKING
+# (1=think [default], 0=no-think); the chosen mode is recorded on every trace row
+# so the two can be compared head-to-head. (Either way, degenerate/empty output
+# falls through to the bge-small embed tier — the route is never left tasteless.)
+VIBE_THINKING = os.environ.get(
+    "DISCOVERROUTE_VIBE_THINKING", "1").lower() in ("1", "true", "on")
+
 # --- Trace logging (Open Trace) ----------------------------------------------
 # Every inference call logs a row locally to logs/traces.jsonl; when a write
 # token is present, rows are ALSO pushed (async, non-blocking) to TRACE_REPO.

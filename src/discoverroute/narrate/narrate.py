@@ -254,24 +254,27 @@ def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
     system = (
         f"You are a {guide}local — a sharp, warm city guide who actually walks these "
         "streets. Write a vivid, first-person walk for this route.\n"
-        "FORMAT — this matters: the first line is EXACTLY ONE markdown H3 heading — a "
-        "short, evocative title (3–6 words) you invent for THIS specific walk, hinting "
-        "at its mood and place. After that, write 2–4 flowing paragraphs "
-        "of continuous prose. Do NOT number the stops. Do NOT give any stop its own "
-        "heading or bullet. If there are many stops, weave several into each paragraph "
-        "rather than a sentence each — keep it moving and finish before you run long. "
-        "Carry the reader start→finish with sensory detail and natural transitions "
-        "('a block on', 'just around the corner', 'as the street opens up'). Bold each "
-        "real stop's name the first time it appears, and reference the user's vibe in "
-        "your own words.\n"
+        "FORMAT — this matters: the FIRST line is a single short title (3–6 words) you "
+        "invent for THIS walk, written as a markdown H3 — it MUST begin with '### ' "
+        "(three hashes then a space). Never write the literal letters 'H3'. After the "
+        "title, write 2–4 flowing paragraphs of continuous prose. Do NOT number the "
+        "stops. Do NOT give any stop its own heading or bullet. If there are many "
+        "stops, weave several into each paragraph rather than a sentence each — keep it "
+        "moving and finish before you run long. Carry the reader start→finish with "
+        "sensory detail and natural transitions ('a block on', 'just around the "
+        "corner', 'as the street opens up'). Bold each real stop's name the first time "
+        "it appears, and reference the user's vibe in your own words.\n"
         "Describe each place in your OWN words — say what it is and why it's worth it. "
         "Never write bare type labels like 'park garden', 'place of worship' or "
-        "'monument historic'. Set the scene freely with the districts, river and "
-        "landmarks under 'You may reference', and mention the time of day or the light.\n"
-        "ONE hard rule: do not invent a *named venue to visit* — every place you name "
-        "as a stop must be one of the 'Ordered stops' (spelled close to the list) or "
-        "the start/destination. You don't need a name in every sentence; describe "
-        "freely, just never fabricate a café/shop/museum name that isn't on the list."
+        "'monument historic'. Mention the time of day or the light.\n"
+        "ONE HARD RULE — NAMES: the ONLY proper names you may write are the 'Ordered "
+        "stops', the start/destination, and the items under 'You may reference'. Do NOT "
+        "name ANY other place — no landmark, museum, monument, bridge, street, square, "
+        "university, church or artwork, even a real famous one (for example do not name "
+        "the Mona Lisa, Sacré-Cœur, Pont des Arts, the Sorbonne, the Louvre) unless it "
+        "is in those lists. To set the scene, describe WITHOUT proper names "
+        "('a stone bridge', 'a grand old church'). A single name outside the lists "
+        "makes the entire itinerary get thrown away."
     )
     user = (
         f"Vibe: {vibe or 'open to anything'}\n"
@@ -285,10 +288,13 @@ def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
     )
     messages = [{"role": "system", "content": system},
                 {"role": "user", "content": user}]
-    # 600 tokens lets flowing prose cover ~10-12 stops without cutting off mid-walk
-    # ("### 9: End your trip" in the traces); a 1B model on A10G still finishes inside
-    # the 45s ZeroGPU slice (see llm.GPU_DURATION_S).
-    text = run_inference(messages, max_new_tokens=600)
+    # Scale the budget with route length so long walks finish instead of truncating
+    # mid-name (a live trace cut "Sacré-C[œur]" off at 600 → the gate then rejected
+    # the fragment). Short routes stay lean; long ones get up to 880, still inside the
+    # 45s ZeroGPU slice (see llm.GPU_DURATION_S). No-think path (fast, direct prose).
+    n = len(pois)
+    max_tok = 600 if n <= 6 else min(880, 600 + 40 * (n - 6))
+    text = run_inference(messages, max_new_tokens=max_tok)
     # Title guard: a 1B model sometimes parrots a stock example title or omits the
     # heading. Ensure the walk opens with a sensible H3 — swap in our own computed
     # route-title if the model echoed a known example or wrote no heading at all.
