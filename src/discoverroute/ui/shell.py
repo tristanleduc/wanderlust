@@ -82,7 +82,18 @@ body{ font-family:'DM Sans',ui-sans-serif,system-ui,sans-serif; color:var(--dr-i
 /* a leading pin/flag glyph for the start & destination fields */
 .field-wrap{ position:relative; }
 .field-wrap > input[type=text]{ padding-left:34px; }
-.field-wrap > select.dr-field{ padding-left:34px; cursor:pointer; }
+/* city picker <select> — styled to match the text inputs (no native chrome) */
+.field-wrap > select.dr-field{
+  width:100%; padding:11px 38px 11px 34px; font-size:14px;
+  font-family:'DM Sans',ui-sans-serif,system-ui,sans-serif; color:var(--dr-ink);
+  border:2px solid var(--dr-line); border-radius:var(--dr-r); background-color:#FFFEFB;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5l3.5 3.5 3.5-3.5' fill='none' stroke='%236B6256' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 14px center; background-size:12px;
+  -webkit-appearance:none; -moz-appearance:none; appearance:none; cursor:pointer;
+  transition:border-color .18s, box-shadow .18s; }
+.field-wrap > select.dr-field:hover{ border-color:#D8C9A8; }
+.field-wrap > select.dr-field:focus{ outline:none; border-color:var(--dr-cobalt);
+  box-shadow:0 0 0 4px rgba(47,93,244,.14); }
 .field-wrap::before{ content:attr(data-glyph); position:absolute; left:12px; top:50%;
   transform:translateY(-50%); font-size:14px; pointer-events:none; z-index:2; line-height:1; }
 
@@ -127,6 +138,19 @@ body{ font-family:'DM Sans',ui-sans-serif,system-ui,sans-serif; color:var(--dr-i
   border-radius:8px; }
 .slider-ends{ display:flex; justify-content:space-between; font-size:10.5px; color:var(--dr-soft);
   margin-top:3px; letter-spacing:.02em; }
+
+/* condensed single-row sliders: label · min-cap · slider · max-cap · value */
+.dr-slider-1{ display:flex; align-items:center; gap:8px; }
+.dr-slider-1 > .dr-label{ margin:0; flex:0 0 auto; width:58px; font-size:12.5px; line-height:1.1; }
+.dr-slider-1 .cap{ flex:0 0 auto; font-size:10px; color:var(--dr-soft); white-space:nowrap; }
+.dr-slider-1 .srng{ flex:1 1 auto; min-width:40px; display:flex; }
+.dr-slider-1 .srng input[type=range]{ width:100%; }
+.dr-slider-1 > .val{ flex:0 0 auto; min-width:30px; text-align:right;
+  font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--dr-soft);
+  padding:2px 6px; background:#FFFDF8; border:1px solid var(--dr-line); border-radius:9px; }
+/* keep the grass-accented thumb on the optional green/quiet sliders */
+#dr-green input[type=range]::-webkit-slider-thumb,
+#dr-quiet input[type=range]::-webkit-slider-thumb{ border-color:var(--dr-grass); }
 
 details.dr-collapse{ padding:0; margin-bottom:14px; }
 details.dr-collapse summary{ list-style:none; cursor:pointer; padding:12px 15px;
@@ -254,6 +278,28 @@ details.dr-collapse .collapse-body{ padding:13px 15px; }
 #dr-mapping .pulse{ width:18px;height:18px;border-radius:50%;background:var(--dr-grass);
   animation:drPulse 1.1s ease-in-out infinite; margin:0 auto 10px; }
 @keyframes drPulse{ 0%,100%{ transform:scale(.7); opacity:.5; } 50%{ transform:scale(1.1); opacity:1; } }
+
+/* live-map teaser loader — a route threads itself between popping pins while we plan */
+.teaser-map{ width:288px; max-width:80vw; margin:20px auto 0; }
+.teaser-map svg{ width:100%; height:auto; display:block;
+  filter:drop-shadow(0 14px 30px rgba(43,38,32,.16)); }
+.route-line{ stroke-dasharray:360; stroke-dashoffset:360; animation:drDraw 3.4s ease-in-out infinite; }
+@keyframes drDraw{ 0%{ stroke-dashoffset:360; } 55%{ stroke-dashoffset:0; }
+  90%{ stroke-dashoffset:0; } 100%{ stroke-dashoffset:360; } }
+.teaser-map .pin{ opacity:0; transform-box:fill-box; transform-origin:center;
+  animation:drPinPop 3.4s var(--dr-spring) infinite; }
+.teaser-map .p-start{ animation-delay:.15s; } .teaser-map .p1{ animation-delay:1s; }
+.teaser-map .p2{ animation-delay:1.7s; } .teaser-map .p-end{ animation-delay:2.3s; }
+@keyframes drPinPop{ 0%{ opacity:0; transform:scale(.2); } 9%{ opacity:1; transform:scale(1.25); }
+  16%{ transform:scale(1); } 86%{ opacity:1; } 100%{ opacity:0; transform:scale(1); } }
+.teaser-map .walker{ offset-rotate:0deg; animation:drWalk 3.4s ease-in-out infinite;
+  offset-path:path("M26,120 C66,112 70,66 116,70 C150,73 168,44 206,58 C236,69 246,40 262,34"); }
+@keyframes drWalk{ 0%{ offset-distance:0%; opacity:0; } 8%{ opacity:1; }
+  55%{ offset-distance:100%; opacity:1; } 64%{ opacity:0; } 100%{ offset-distance:100%; opacity:0; } }
+@media (prefers-reduced-motion: reduce){
+  .route-line{ animation:none; stroke-dashoffset:0; }
+  .teaser-map .pin{ animation:none; opacity:1; }
+  .teaser-map .walker{ animation:none; opacity:0; } }
 
 /* no-detour sticker slot */
 #dr-nodetour:empty{ display:none; }
@@ -391,24 +437,22 @@ def _left_panel() -> str:
     </div>
   </div>
 
-  <div class="dr-control">
-    <label class="dr-label" for="dr-budget-i">Detour budget</label>
-    <div id="dr-budget" class="dr-slider">
-      <input type="range" id="dr-budget-i" min="0" max="2" step="0.1" value="0.5"
-             aria-label="Detour budget">
-      <output id="dr-budget-o">0.5</output>
-    </div>
-    <div class="slider-ends"><span>straight there</span><span>up to 2× longer</span></div>
+  <div class="dr-control dr-slider-1">
+    <label class="dr-label" for="dr-budget-i">Detour</label>
+    <span class="cap">direct</span>
+    <span id="dr-budget" class="srng"><input type="range" id="dr-budget-i" min="0" max="2"
+          step="0.1" value="0.5" aria-label="Detour budget"></span>
+    <span class="cap">2× longer</span>
+    <output id="dr-budget-o" class="val">0.5</output>
   </div>
 
-  <div class="dr-control">
-    <label class="dr-label" for="dr-adv-i">Adventurousness</label>
-    <div id="dr-adv" class="dr-slider">
-      <input type="range" id="dr-adv-i" min="0" max="1" step="0.05" value="0.3"
-             aria-label="Adventurousness">
-      <output id="dr-adv-o">0.3</output>
-    </div>
-    <div class="slider-ends"><span>well-known</span><span>hidden gems</span></div>
+  <div class="dr-control dr-slider-1">
+    <label class="dr-label" for="dr-adv-i">Adventure</label>
+    <span class="cap">classic</span>
+    <span id="dr-adv" class="srng"><input type="range" id="dr-adv-i" min="0" max="1"
+          step="0.05" value="0.3" aria-label="Adventurousness"></span>
+    <span class="cap">hidden gems</span>
+    <output id="dr-adv-o" class="val">0.3</output>
   </div>
 
   <details class="dr-collapse">
@@ -416,21 +460,17 @@ def _left_panel() -> str:
     <div class="collapse-body">
       <div class="dr-help" style="margin:0 0 10px;">Only used when Vibe and your saved
         profile are both empty.</div>
-      <div class="dr-control">
-        <label class="dr-label" for="dr-green-i">Prefer green</label>
-        <div id="dr-green" class="dr-slider green">
-          <input type="range" id="dr-green-i" min="0" max="1" step="0.05" value="0.5"
-                 aria-label="Prefer green">
-          <output id="dr-green-o">0.5</output>
-        </div>
+      <div class="dr-control dr-slider-1">
+        <label class="dr-label" for="dr-green-i">Green</label>
+        <span id="dr-green" class="srng green"><input type="range" id="dr-green-i" min="0"
+              max="1" step="0.05" value="0.5" aria-label="Prefer green"></span>
+        <output id="dr-green-o" class="val">0.5</output>
       </div>
-      <div class="dr-control" style="margin-bottom:0;">
-        <label class="dr-label" for="dr-quiet-i">Prefer quiet</label>
-        <div id="dr-quiet" class="dr-slider green">
-          <input type="range" id="dr-quiet-i" min="0" max="1" step="0.05" value="0.5"
-                 aria-label="Prefer quiet">
-          <output id="dr-quiet-o">0.5</output>
-        </div>
+      <div class="dr-control dr-slider-1" style="margin-bottom:0;">
+        <label class="dr-label" for="dr-quiet-i">Quiet</label>
+        <span id="dr-quiet" class="srng green"><input type="range" id="dr-quiet-i" min="0"
+              max="1" step="0.05" value="0.5" aria-label="Prefer quiet"></span>
+        <output id="dr-quiet-o" class="val">0.5</output>
       </div>
     </div>
   </details>
@@ -513,25 +553,34 @@ def index_html() -> str:
 </html>"""
 
 
+_TEASER_PATH = "M26,120 C66,112 70,66 116,70 C150,73 168,44 206,58 C236,69 246,40 262,34"
+
+
 def _loading_inner() -> str:
-    """Stride mascot (reused) + the 4-step stepper."""
-    steps = ["Interpreting vibe", "Scoring places", "Solving route", "Writing itinerary"]
-    pips = []
-    for i, label in enumerate(steps):
-        if i:
-            pips.append('<div class="bar" data-bar="%d"></div>' % i)
-        pips.append(
-            f'<div class="step" data-step="{i}"><div class="pip"></div>'
-            f'<div class="lbl">{label}</div></div>'
-        )
-    stepper = '<div class="stepper">' + "".join(pips) + "</div>"
+    """Live-map teaser: a little route threads itself between popping pins while
+    we plan — a playful preview of the real map so the wait feels like progress."""
     return f"""
 <div style="text-align:center; max-width:540px; padding:0 16px;">
   <div style="font-family:'Fredoka',system-ui,sans-serif;font-weight:600;font-size:21px;
        color:#2B2620;">Scouting your wander…</div>
   <div style="font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:#6B6256;
        margin-top:6px;">reading your vibe · scoring 30,000 places · threading the detour</div>
-  {stepper}
+  <div class="teaser-map" aria-hidden="true">
+    <svg viewBox="0 0 288 150" role="img">
+      <rect x="0" y="0" width="288" height="150" rx="18" fill="#FFFCF5" stroke="#E7DAC0"/>
+      <g stroke="#EFE3C8" stroke-width="2" stroke-linecap="round">
+        <line x1="20" y1="40" x2="268" y2="34"/><line x1="16" y1="92" x2="272" y2="100"/>
+        <line x1="70" y1="16" x2="84" y2="138"/><line x1="178" y1="14" x2="196" y2="140"/>
+      </g>
+      <path class="route-line" d="{_TEASER_PATH}" fill="none" stroke="var(--dr-cobalt)"
+            stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle class="pin p-start" cx="26"  cy="120" r="6.5" fill="var(--dr-grass)"  stroke="#fff" stroke-width="2"/>
+      <circle class="pin p1"      cx="116" cy="70"  r="5.5" fill="var(--dr-coral)"  stroke="#fff" stroke-width="2"/>
+      <circle class="pin p2"      cx="206" cy="58"  r="5.5" fill="var(--dr-coral)"  stroke="#fff" stroke-width="2"/>
+      <circle class="pin p-end"   cx="262" cy="34"  r="6.5" fill="var(--dr-cobalt)" stroke="#fff" stroke-width="2"/>
+      <circle class="walker" r="4.5" fill="#fff" stroke="var(--dr-cobalt)" stroke-width="3"/>
+    </svg>
+  </div>
 </div>
 """
 
