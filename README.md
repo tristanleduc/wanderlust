@@ -149,7 +149,7 @@ python app.py                   # serves the gr.Server app-shell on :7860
 
 The other eight cities are pulled on demand from the Hub dataset (and pre-warmed at boot).
 Run the test suite with `pytest` (config in `pyproject.toml`, tests in `tests/`).
-See [`DEPLOY.md`](DEPLOY.md) to push to a Space and [`FIELD_NOTES.md`](FIELD_NOTES.md) for the build story.
+See [`FIELD_NOTES.md`](FIELD_NOTES.md) for the build story.
 
 ## Architecture
 
