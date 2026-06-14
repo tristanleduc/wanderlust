@@ -254,11 +254,9 @@ def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
     system = (
         f"You are a {guide}local — a sharp, warm city guide who actually walks these "
         "streets. Write a vivid, first-person walk for this route.\n"
-        "FORMAT — this matters: the first line is EXACTLY ONE markdown H3 heading — "
-        "invent a short, evocative title for THIS specific walk (3–6 words; e.g. "
-        "'### The Quiet Green Mile', '### A West Village Wander', '### Midtown by "
-        "Twilight' — make up your own, do not reuse these). After that, write 2–4 "
-        "flowing paragraphs "
+        "FORMAT — this matters: the first line is EXACTLY ONE markdown H3 heading — a "
+        "short, evocative title (3–6 words) you invent for THIS specific walk, hinting "
+        "at its mood and place. After that, write 2–4 flowing paragraphs "
         "of continuous prose. Do NOT number the stops. Do NOT give any stop its own "
         "heading or bullet. If there are many stops, weave several into each paragraph "
         "rather than a sentence each — keep it moving and finish before you run long. "
@@ -290,4 +288,16 @@ def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
     # 600 tokens lets flowing prose cover ~10-12 stops without cutting off mid-walk
     # ("### 9: End your trip" in the traces); a 1B model on A10G still finishes inside
     # the 45s ZeroGPU slice (see llm.GPU_DURATION_S).
-    return run_inference(messages, max_new_tokens=600)
+    text = run_inference(messages, max_new_tokens=600)
+    # Title guard: a 1B model sometimes parrots a stock example title or omits the
+    # heading. Ensure the walk opens with a sensible H3 — swap in our own computed
+    # route-title if the model echoed a known example or wrote no heading at all.
+    _STOCK = {"like this", "the quiet green mile", "a west village wander",
+              "midtown by twilight"}
+    lines = text.strip().splitlines()
+    if lines and lines[0].lstrip().startswith("#"):
+        if lines[0].lstrip("# ").strip().lower() in _STOCK:
+            lines[0] = f"### {_route_title(pois, mode, city_label)}"
+    elif lines:
+        lines = [f"### {_route_title(pois, mode, city_label)}", ""] + lines
+    return "\n".join(lines)
