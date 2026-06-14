@@ -251,9 +251,10 @@ def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
     from discoverroute.narrate.llm import run_inference
 
     names = [taxonomy.display_label(p) for p in pois]
-    bullet = "\n".join(
-        f"- {n} ({p.category.replace('_', ' ')})" for n, p in zip(names, pois)
-    )
+    # Name only — NOT the raw category. Feeding "(park garden)" made the 1B model
+    # parrot it back ("It's a park garden, exactly as it sounds"); the place's type
+    # is usually obvious from its name, and we tell the model to describe naturally.
+    bullet = "\n".join(f"- {n}" for n in names)
     extra = round(discovery.time_min - plain.time_min)
     total_min = round(discovery.time_min + getattr(discovery, "dwell_s", 0.0) / 60.0)
     weights_line = _weights_summary(weights)
@@ -262,21 +263,24 @@ def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
 
     system = (
         f"You are a {guide}local — a sharp, warm city guide who actually walks these "
-        "streets. Write a short, vivid, first-person itinerary for this route. Make "
-        "it FLOW like a story, not a checklist: open with a one-line evocative title "
-        "(as a markdown `### ` heading), then carry the reader from start to finish in "
-        "a few short paragraphs, weaving the stops in with sensory detail and natural "
-        "transitions ('a block on', 'just around the corner', 'as the street opens up'). "
-        "Reference the user's vibe in your own words. Bold each real stop's name the "
-        "first time it appears.\n"
-        "Set the scene freely with the districts, river, and landmarks under 'You may "
-        "reference' — name them to give the walk a sense of place, mention the time of "
-        "day or the light, describe what a place feels like. Have a voice.\n"
-        "ONE hard rule, and only one: do not invent a *named venue to visit* — every "
-        "place you tell the reader to actually stop at or pass must be one of the "
-        "'Ordered stops' (spelled close to the list) or the start/destination. You "
-        "don't need a name for every sentence; describe freely, just never fabricate a "
-        "specific café/shop/museum name that isn't on the list."
+        "streets. Write a vivid, first-person walk for this route.\n"
+        "FORMAT — this matters: use EXACTLY ONE markdown heading, an evocative title "
+        "on the first line (`### Like This`). After that, write 2–4 flowing paragraphs "
+        "of continuous prose. Do NOT number the stops. Do NOT give any stop its own "
+        "heading or bullet. If there are many stops, weave several into each paragraph "
+        "rather than a sentence each — keep it moving and finish before you run long. "
+        "Carry the reader start→finish with sensory detail and natural transitions "
+        "('a block on', 'just around the corner', 'as the street opens up'). Bold each "
+        "real stop's name the first time it appears, and reference the user's vibe in "
+        "your own words.\n"
+        "Describe each place in your OWN words — say what it is and why it's worth it. "
+        "Never write bare type labels like 'park garden', 'place of worship' or "
+        "'monument historic'. Set the scene freely with the districts, river and "
+        "landmarks under 'You may reference', and mention the time of day or the light.\n"
+        "ONE hard rule: do not invent a *named venue to visit* — every place you name "
+        "as a stop must be one of the 'Ordered stops' (spelled close to the list) or "
+        "the start/destination. You don't need a name in every sentence; describe "
+        "freely, just never fabricate a café/shop/museum name that isn't on the list."
     )
     user = (
         f"Vibe: {vibe or 'open to anything'}\n"
@@ -291,6 +295,7 @@ def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
     )
     messages = [{"role": "system", "content": system},
                 {"role": "user", "content": user}]
-    # ≤480 tokens comfortably covers ~6 stops (one short paragraph each) and keeps
-    # generation inside the 45s ZeroGPU slice (see llm.GPU_DURATION_S).
-    return run_inference(messages, max_new_tokens=480)
+    # 600 tokens lets flowing prose cover ~10-12 stops without cutting off mid-walk
+    # ("### 9: End your trip" in the traces); a 1B model on A10G still finishes inside
+    # the 45s ZeroGPU slice (see llm.GPU_DURATION_S).
+    return run_inference(messages, max_new_tokens=600)
