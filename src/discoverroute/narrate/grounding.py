@@ -38,8 +38,20 @@ _COMMON = {
     "just", "main", "canvas", "serene", "golden", "thread", "serendipity",
     "awaits", "loop", "tucked", "secret", "alcove", "heart", "memory", "story",
     "stories", "forgotten", "damp", "concrete", "dusty", "afternoon", "sky",
-    "subway", "grid", "skyscrapers", "skyscraper", "serenity", "canvas", "echoes",
+    "subway", "grid", "skyscrapers", "skyscraper", "serenity", "echoes",
     "whisper", "whispers", "glow", "shimmer", "quietude",
+    # common sentence-starting verbs/adverbs the model opens clauses with — never
+    # venues, but capitalized at a sentence boundary the extractor would flag them.
+    "stepping", "step", "begin", "beginning", "enter", "entering", "exit",
+    "leave", "leaving", "approach", "approaching", "imagine", "imagining",
+    "picture", "notice", "noticing", "feel", "feeling", "soon", "duck", "ducking",
+    "glance", "linger", "lingering", "explore", "exploring", "discover",
+    "discovering", "meander", "meandering", "amble", "ambling", "saunter",
+    "sauntering", "carry", "carrying", "move", "moving", "emerge", "emerging",
+    "drift", "drifting", "ahead", "beyond", "below", "above", "around", "alongside",
+    "tucked", "nestled", "perched", "wrapped", "framed", "lit", "bathed",
+    "morning", "midday", "twilight", "moment", "moments", "pause", "rest",
+    "finally", "eventually", "meanwhile", "soon", "shortly", "nearby", "opposite",
     # template/narration sentence-starters and connective words
     "why", "spending", "every", "threads", "discoveries", "real", "spot",
     "nothing", "invented", "breath", "hush", "shelves", "stalls", "something",

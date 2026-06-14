@@ -230,15 +230,6 @@ def narrate(plain, discovery, pois, vibe="", mode="walk", start_label="",
     return template, False  # fail-closed: ship the grounded template
 
 
-def _weights_summary(weights) -> str:
-    """Compact 'cafe 0.9, park 0.7' line from the extracted weights, if any."""
-    aff = getattr(weights, "category_affinity", None)
-    if not aff:
-        return ""
-    top = sorted(aff, key=aff.get, reverse=True)[:5]
-    return ", ".join(f"{c.replace('_', ' ')} {aff[c]:.2f}" for c in top)
-
-
 def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
                    weights=None, geo_allowed=None, city_label="") -> str:
     """Generate narration with MiniCPM5-1B, constrained to the allowed names.
@@ -257,7 +248,6 @@ def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
     bullet = "\n".join(f"- {n}" for n in names)
     extra = round(discovery.time_min - plain.time_min)
     total_min = round(discovery.time_min + getattr(discovery, "dwell_s", 0.0) / 60.0)
-    weights_line = _weights_summary(weights)
     guide = f"{city_label} " if city_label else ""
     context_terms = ", ".join(geo_allowed) if geo_allowed else ""
 
@@ -284,7 +274,6 @@ def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
     )
     user = (
         f"Vibe: {vibe or 'open to anything'}\n"
-        + (f"Weights extracted: {weights_line}\n" if weights_line else "")
         + f"Mode: {mode} from {start_label or 'the start'} to "
         f"{end_label or 'the destination'}\n"
         + (f"You may reference (scene-setting, name freely): {context_terms}\n"
