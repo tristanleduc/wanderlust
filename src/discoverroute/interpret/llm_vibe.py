@@ -15,28 +15,33 @@ import time
 
 from discoverroute.interpret import mapping
 
-# NOTE on prompt design: the previous schema literally showed each key as
-# `"cafe": 0.0-1.0`, and the 1B model parroted the `0.0` back as the value —
-# returning an all-zero weighting that the router can't act on (a "quiet green
-# wander" came out tasteless). We now state the 0..1 meaning in words, forbid the
-# all-zero / all-equal degenerate answers explicitly, and give ONE worked example
-# (a vibe unrelated to any preset) so the model copies the *shape*, not a value.
+# NOTE on prompt design (two parrot traps, both seen live in the traces):
+#  1) the original schema showed each key as `"cafe": 0.0-1.0`; the 1B parroted
+#     the `0.0` as the value → all-zero weighting → tasteless route.
+#  2) replacing it with ONE worked JSON example backfired worse: the model copied
+#     the example's numbers VERBATIM regardless of the vibe (a "quiet green wander"
+#     came back byte-identical to the "riverside picnic" example).
+# Lesson: give the 1B no concrete number-set to copy. State the 0..1 meaning in
+# words, teach the *mapping* with short word→type cues (not a full object), and
+# forbid the degenerate answers. Wrong/empty output is still caught downstream
+# (_is_degenerate → embed tier), so the route is never left tasteless.
 SYSTEM_PROMPT = (
     "You convert a walk/ride 'vibe' into place-type preference weights for a "
     "routing engine.\n"
-    "For each place type, score how strongly the vibe calls for it: 0 means "
-    "irrelevant, 1 means central to the vibe. Most vibes strongly want only two "
-    "to four types — give those 0.7-1.0 and keep the rest low. Never set every "
-    "value to 0, and never give every type the same value.\n"
-    "detour_budget_multiplier is how far off the direct line the vibe justifies: "
-    "0.5 = stay direct, 2.0 = big detours welcome.\n"
-    "Reply with ONLY a JSON object (no prose, no markdown) using EXACTLY these "
-    "keys: cafe, park, bookshop, museum, bakery, restaurant, bar, viewpoint, "
-    "market, quiet, green, historic, busy, detour_budget_multiplier.\n"
-    "Example — for the vibe \"sunny riverside picnic\":\n"
-    '{"cafe":0.4,"park":0.9,"bookshop":0.1,"museum":0.1,"bakery":0.6,'
-    '"restaurant":0.2,"bar":0.1,"viewpoint":0.7,"market":0.5,"quiet":0.6,'
-    '"green":0.9,"historic":0.2,"busy":0.1,"detour_budget_multiplier":1.2}'
+    "For EACH place type listed below, output a number from 0 to 1 for how "
+    "strongly THIS vibe calls for it: 0 = irrelevant, ~0.5 = a little, 0.8-1.0 = "
+    "central to the vibe. A typical vibe strongly wants only two to four types — "
+    "score those high and keep the rest low.\n"
+    "Read the actual words of the vibe and score from them, for example: "
+    "'green' or 'park' or 'nature' → park and green high; 'quiet' or 'calm' → "
+    "quiet high; 'lively' or 'buzzing' → busy and bar high; 'coffee' or 'café' → "
+    "cafe high; 'books' → bookshop high; 'history' or 'old' → historic high. "
+    "Never make every value 0, and never make every value the same.\n"
+    "detour_budget_multiplier: 0.5 = keep it direct, up to 2.0 = big detours "
+    "welcome.\n"
+    "Output ONLY a JSON object (no prose, no markdown) with EXACTLY these keys, "
+    "in this order: cafe, park, bookshop, museum, bakery, restaurant, bar, "
+    "viewpoint, market, quiet, green, historic, busy, detour_budget_multiplier."
 )
 
 REQUIRED_KEYS = (

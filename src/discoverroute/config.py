@@ -151,13 +151,13 @@ LLM_MODEL = "openbmb/MiniCPM5-1B"
 
 # A/B toggle for Call 1 (vibe→weights): run the model's REASONING pass
 # (enable_thinking, MiniCPM5-1B is hybrid-reasoning) or the fast no-think path.
-# Thinking may score a fuzzy vibe better but needs a far bigger token budget and
-# more of the ZeroGPU slice. Flip the Space variable DISCOVERROUTE_VIBE_THINKING
-# (1=think [default], 0=no-think); the chosen mode is recorded on every trace row
-# so the two can be compared head-to-head. (Either way, degenerate/empty output
-# falls through to the bge-small embed tier — the route is never left tasteless.)
+# DEFAULT no-think: the live A/B was decisive — thinking ran ~26s (3× no-think's
+# ~9s, 3× the ZeroGPU slice) and *corrupted* the JSON (zeroed the matching
+# categories), while no-think returned clean output. Reasoning did not help this
+# short scoring task. Flip DISCOVERROUTE_VIBE_THINKING=1 to re-run the comparison;
+# the chosen mode is recorded on every trace row.
 VIBE_THINKING = os.environ.get(
-    "DISCOVERROUTE_VIBE_THINKING", "1").lower() in ("1", "true", "on")
+    "DISCOVERROUTE_VIBE_THINKING", "0").lower() in ("1", "true", "on")
 
 # --- Trace logging (Open Trace) ----------------------------------------------
 # Every inference call logs a row locally to logs/traces.jsonl; when a write
