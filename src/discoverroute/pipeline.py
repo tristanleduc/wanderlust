@@ -185,10 +185,13 @@ def _plan_route_impl(
             if discovery is None or not selected:
                 break
             used_ids.update(p.osm_id for p in selected)
+            from discoverroute.narrate import gazetteer
+            geo_allowed = gazetteer.geo_terms(area.key, area.label)
             itinerary_md, _ = narrate(
                 plain, discovery, selected, vibe=vibe, mode=mode,
                 start_label=start_query.strip(), end_label=dest_query.strip(),
                 posture=posture, weights=weights, weak=weak_match,
+                geo_allowed=geo_allowed, city_label=area.label,
             )
             alternatives.append(Alternative(
                 discovery=discovery, pois=selected,

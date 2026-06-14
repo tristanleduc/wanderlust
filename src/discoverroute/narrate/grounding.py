@@ -45,6 +45,18 @@ _COMMON = {
     "weaving", "dip", "duck", "swing", "loop", "breathe", "slow", "set", "make",
     "expect", "stay", "keep", "give", "spend", "spent", "thread", "threaded",
     "minute", "hour", "hours", "place", "places", "stops", "option", "options",
+    # city-independent descriptive words a guide uses: era/architecture styles,
+    # nationalities, and generic geographic nouns. Never standalone venue names,
+    # so admitting them lets prose breathe without opening a hallucination vector
+    # (a distinctive token like "Eiffel" still has to match an allowed name).
+    "roman", "gothic", "medieval", "renaissance", "baroque", "romanesque",
+    "neoclassical", "art", "deco", "nouveau", "modern", "ancient", "classical",
+    "victorian", "georgian", "haussmann", "french", "parisian", "english",
+    "british", "spanish", "catalan", "american", "european",
+    "river", "riverside", "quarter", "district", "neighbourhood", "neighborhood",
+    "bank", "island", "hill", "boulevard", "avenue", "street", "lane", "square",
+    "park", "garden", "gardens", "bridge", "quay", "embankment", "canal",
+    "market", "quartier", "rue", "pont", "jardin", "plaza", "passeig",
 }
 
 _TOKEN_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ0-9'’.\-]*")
@@ -58,11 +70,18 @@ def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
-def allowed_names(pois, start_label: str = "", end_label: str = "") -> list[str]:
+def allowed_names(pois, start_label: str = "", end_label: str = "",
+                  extra_allowed=None) -> list[str]:
     names = [p.name for p in pois if getattr(p, "name", None)]
     for lbl in (start_label, end_label):
         if lbl and lbl.strip():
             names.append(lbl.strip())
+    # Geographic context the narrator may name (districts, river, landmarks) —
+    # supplied per city by narrate.gazetteer. Real OSM-scale places, not invented
+    # venues, so admitting them keeps the grounding guarantee while letting the
+    # LLM write like an actual city guide instead of falling back to the template.
+    if extra_allowed:
+        names.extend(a for a in extra_allowed if a and a.strip())
     names.append("Paris")
     return names
 
@@ -139,9 +158,15 @@ def _is_grounded_mention(mention: str, allowed_norm: list[str]) -> bool:
     return any(core in a for a in allowed_norm if a)
 
 
-def verify_grounded(text: str, pois, start_label="", end_label="") -> tuple[bool, list[str]]:
-    """(ok, offenders). ok=True iff every mention maps to an allowed name."""
-    allowed_norm = [_norm(a) for a in allowed_names(pois, start_label, end_label)]
+def verify_grounded(text: str, pois, start_label="", end_label="",
+                    extra_allowed=None) -> tuple[bool, list[str]]:
+    """(ok, offenders). ok=True iff every mention maps to an allowed name.
+
+    ``extra_allowed`` is the per-city geographic gazetteer (districts, river,
+    landmarks) the narrator may reference beyond the selected POIs + endpoints.
+    """
+    allowed_norm = [_norm(a)
+                    for a in allowed_names(pois, start_label, end_label, extra_allowed)]
     offenders = [
         mention for mention in extract_mentions(text)
         if not _is_grounded_mention(mention, allowed_norm)

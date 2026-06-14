@@ -12,9 +12,17 @@ import functools
 
 from discoverroute import config
 
+# ZeroGPU reserves the requested ``duration`` seconds of quota *per call*, so a
+# fat slice drains a day's allowance in a dozen requests (the live Space was
+# erroring "180s requested vs. 170s left" then falling back to the template). A
+# 1B model loading from cache + generating ≤480 tokens on an A10G finishes well
+# inside 45s, so request that — ~3× more calls per day, with headroom over the
+# first-call weight-load cost.
+GPU_DURATION_S = 45
+
 try:
     import spaces  # ZeroGPU; effect-free off-Spaces
-    _gpu = spaces.GPU(duration=120)
+    _gpu = spaces.GPU(duration=GPU_DURATION_S)
 except Exception:  # noqa: BLE001 - not on a Space / package absent
     def _gpu(fn):
         return fn
@@ -41,13 +49,18 @@ def run_inference(messages: list[dict], max_new_tokens: int = 320,
                   temperature: float = 0.7) -> str:
     """Run a chat completion. ``messages`` = [{"role","content"}, ...]."""
     tok, model = _load()
+    # MiniCPM5 is a hybrid-reasoning model: with thinking on it emits a
+    # <think>...</think> block first, which would devour the JSON/narration token
+    # budget and leave nothing usable. We want the fast direct answer, so disable
+    # it explicitly (the kwarg is ignored harmlessly by templates that lack it).
     text = tok.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
+        messages, tokenize=False, add_generation_prompt=True, enable_thinking=False
     )
     inputs = tok([text], return_tensors="pt").to(model.device)
+    # MiniCPM5 "no-think" recommended sampling: temperature 0.7, top_p 0.95.
     out = model.generate(
         **inputs, max_new_tokens=max_new_tokens,
-        temperature=temperature, top_p=0.8, top_k=20, do_sample=True,
+        temperature=temperature, top_p=0.95, top_k=20, do_sample=True,
     )
     gen = out[0][inputs.input_ids.shape[1]:]
     return tok.decode(gen, skip_special_tokens=True).strip()

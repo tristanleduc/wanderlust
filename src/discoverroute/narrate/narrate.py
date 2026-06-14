@@ -135,8 +135,14 @@ def llm_available() -> bool:
 
 
 def narrate(plain, discovery, pois, vibe="", mode="walk", start_label="",
-            end_label="", posture=None, weights=None, weak=False) -> tuple[str, bool]:
-    """Return (markdown, used_llm). Output is guaranteed grounded."""
+            end_label="", posture=None, weights=None, weak=False,
+            geo_allowed=None, city_label="") -> tuple[str, bool]:
+    """Return (markdown, used_llm). Output is guaranteed grounded.
+
+    ``geo_allowed`` is the per-city geographic gazetteer (districts, river,
+    landmarks) the LLM may name; ``city_label`` localises the guide's voice
+    (e.g. "London" instead of the old hardcoded "Parisian").
+    """
     template = template_narration(
         plain, discovery, pois, vibe, mode, start_label, end_label, posture, weights, weak
     )
@@ -151,8 +157,9 @@ def narrate(plain, discovery, pois, vibe="", mode="walk", start_label="",
     t0 = time.time()
     try:
         text = _llm_narration(plain, discovery, pois, vibe, mode,
-                              start_label, end_label, weights)
-        ok, offenders = grounding.verify_grounded(text, pois, start_label, end_label)
+                              start_label, end_label, weights, geo_allowed, city_label)
+        ok, offenders = grounding.verify_grounded(
+            text, pois, start_label, end_label, extra_allowed=geo_allowed)
         latency = int((time.time() - t0) * 1000)
         if ok and text.strip():
             trace.log_trace("narration", meta, {"text": text}, latency,
@@ -179,8 +186,14 @@ def _weights_summary(weights) -> str:
 
 
 def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
-                   weights=None) -> str:
-    """Generate narration with MiniCPM5-1B, constrained to the allowed names."""
+                   weights=None, geo_allowed=None, city_label="") -> str:
+    """Generate narration with MiniCPM5-1B, constrained to the allowed names.
+
+    The model may colour the route with the listed neighbourhoods / river /
+    landmarks (``geo_allowed``) so it reads like a real guide — but it still must
+    not invent a *venue* to visit. Anything it slips past that rule is caught by
+    the grounding gate and the template ships instead.
+    """
     from discoverroute.narrate.llm import run_inference
 
     names = [taxonomy.display_label(p) for p in pois]
@@ -190,26 +203,36 @@ def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
     extra = round(discovery.time_min - plain.time_min)
     total_min = round(discovery.time_min + getattr(discovery, "dwell_s", 0.0) / 60.0)
     weights_line = _weights_summary(weights)
+    guide = f"{city_label} " if city_label else ""
+    context_terms = ", ".join(geo_allowed) if geo_allowed else ""
 
     system = (
-        "You are a Parisian city guide who knows every street. Write a warm, "
-        "specific, first-person itinerary for this walking route. Reference the "
-        "user's stated vibe directly. For each stop, explain in one sentence why "
-        "it matches what they were looking for. Format as markdown with one "
-        "header per stop.\n"
-        "CRITICAL: mention ONLY the place names listed in the prompt, spelled "
-        "exactly. Never invent or name any other place, street, landmark, or "
-        "neighbourhood. If unsure, refer to a place by its type, not a name."
+        f"You are a {guide}city guide who knows every street. Write a warm, "
+        "vivid, first-person itinerary for this route — sensory and specific, "
+        "the kind of thing a local would actually say. Reference the user's "
+        "stated vibe directly, and in one sentence per stop say why it fits.\n"
+        "You MAY set the scene with the districts, river, and landmarks listed "
+        "under 'You may reference' — name them freely to give the walk a sense "
+        "of place.\n"
+        "HARD RULE: every specific stop you tell the user to visit must be one of "
+        "the 'Ordered stops', spelled exactly. Never invent a café, shop, museum, "
+        "restaurant or any other named venue that isn't in that list. If unsure, "
+        "describe a place by its type, not a made-up name.\n"
+        "Format as markdown with one bold header per stop."
     )
     user = (
         f"Vibe: {vibe or 'open to anything'}\n"
         + (f"Weights extracted: {weights_line}\n" if weights_line else "")
         + f"Mode: {mode} from {start_label or 'the start'} to "
         f"{end_label or 'the destination'}\n"
-        f"Ordered stops:\n{bullet}\n"
+        + (f"You may reference (scene-setting only, do not list as stops): "
+           f"{context_terms}\n" if context_terms else "")
+        + f"Ordered stops (the ONLY venues you may name):\n{bullet}\n"
         f"Total time: {total_min} minutes (about {extra} minutes of discovery)\n\n"
         "Write the itinerary."
     )
     messages = [{"role": "system", "content": system},
                 {"role": "user", "content": user}]
-    return run_inference(messages, max_new_tokens=600)
+    # ≤480 tokens comfortably covers ~6 stops (one short paragraph each) and keeps
+    # generation inside the 45s ZeroGPU slice (see llm.GPU_DURATION_S).
+    return run_inference(messages, max_new_tokens=480)

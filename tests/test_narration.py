@@ -69,6 +69,40 @@ def test_gate_allows_unnamed_by_type():
     assert ok, offenders
 
 
+def test_geo_gazetteer_allows_real_districts():
+    """A guide may name the city's real districts/river when given the gazetteer,
+    so vivid prose passes the gate instead of being thrown out for the template."""
+    from discoverroute.narrate import gazetteer
+    geo = gazetteer.geo_terms("paris", "Paris")
+    text = ("From the Marais, drift down toward the Seine and into the Latin "
+            "Quarter, passing Jardin des Plantes for some green and Fontaine "
+            "Médicis. A very Parisian wander with Roman echoes near the Panthéon.")
+    ok, offenders = grounding.verify_grounded(
+        text, POIS, start_label="Bastille", end_label="Panthéon",
+        extra_allowed=geo,
+    )
+    assert ok, offenders
+
+
+def test_geo_gazetteer_still_blocks_invented_venue():
+    """Loosening for districts must NOT let an invented venue through."""
+    from discoverroute.narrate import gazetteer
+    geo = gazetteer.geo_terms("paris", "Paris")
+    text = ("Cross the Marais, then stop at Café des Mensonges, a charming "
+            "invented spot, before Jardin des Plantes.")
+    ok, offenders = grounding.verify_grounded(
+        text, POIS, start_label="Bastille", extra_allowed=geo,
+    )
+    assert not ok
+    assert any("Mensonges" in o for o in offenders)
+
+
+def test_uncurated_city_has_no_extra_context():
+    """An on-demand area (bbox-hash key) gets no gazetteer => fails closed."""
+    from discoverroute.narrate import gazetteer
+    assert gazetteer.geo_terms("48.1,2.2,48.2,2.3", "this area") == ["this area"]
+
+
 class _Route:
     def __init__(self, time_min):
         self.time_min = time_min
