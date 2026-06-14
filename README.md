@@ -57,9 +57,10 @@ ground right under your wheels.
 ## 🔗 Links (judges start here)
 
 - **🗺️ Live Space:** https://huggingface.co/spaces/build-small-hackathon/WanderLust
-- **🎬 Demo video:** _TBA_
-- **📣 Social post:** _TBA_
-- **📝 Field notes (HF blog):** _TBA_
+- **💻 Source code (GitHub):** https://github.com/tristanleduc/wanderlust
+- **🎬 Demo video:** https://www.youtube.com/watch?v=55Ofnt6Hhv4
+- **📣 Social post:** [LinkedIn](https://www.linkedin.com/posts/ishrat-jahan-ananya_build-small-hackathon-build-small-hackathon-activity-7472015876708548609-Ss8T) · [X/Twitter](https://x.com/coreprinciple_/status/2066248778416267553)
+- **📝 Field notes (HF blog):** https://huggingface.co/blog/coreprinciple/wanderlust
 - **🧑‍🤝‍🧑 Team:**
   - **Ishrat Jahan Ananya** — [Hugging Face](https://huggingface.co/coreprinciple) · [GitHub](https://github.com/coreprinciple6) · [Website](https://coreprinciple.vercel.app/)
   - **Tristan Leduc** — [Hugging Face](https://huggingface.co/JohnDoe6) · [GitHub](https://github.com/tristanleduc) · [LinkedIn](https://www.linkedin.com/in/tristan-leduc-56491b188/)
@@ -119,7 +120,7 @@ the experience feel like it read your mind.)
 | **Off the Grid** (`offgrid`) | With `DISCOVERROUTE_OFFLINE=1`, **zero cloud APIs at request time** — every city is pre-baked + pre-warmed at boot, geocoding is local, and the 1B model runs in-Space on ZeroGPU. |
 | **Off-Brand** (`offbrand`) | A hand-built `gr.Server` HTML/CSS/JS app-shell — **zero default Gradio components**: custom map, custom controls, custom live-map loader. |
 | **Sharing is Caring** (`sharing`) | Two reusable artifacts shared publicly on the Hub: the city-cores dataset [`build-small-hackathon/discoverroute-cities`](https://huggingface.co/datasets/build-small-hackathon/discoverroute-cities) and the inference-trace dataset `build-small-hackathon/discoverroute-traces`. |
-| **Field Notes** (`fieldnotes`) | The end-to-end build story — decisions, dead ends, fixes — drafted in [`FIELD_NOTES.md`](FIELD_NOTES.md) and published as an **HF blog post** (link above). |
+| **Field Notes** (`fieldnotes`) | The end-to-end build story — decisions, dead ends, fixes — in [`FIELD_NOTES.md`](FIELD_NOTES.md) and published as an **[HF blog post](https://huggingface.co/blog/coreprinciple/wanderlust)**. |
 
 **Bonus badges** (prize categories) we're going for:
 
@@ -129,8 +130,6 @@ the experience feel like it read your mind.)
 | **Tiny Titan** ($1,500) | **MiniCPM5-1B — 1B parameters** (well under the 4B cap), in-Space on ZeroGPU. |
 | **Best Agent** ($1,000) | Four-stage planning pipeline: vibe → routing weights → POI scoring → orienteering solve → grounded narration. |
 
-In reach: **Best Demo** ($1,000) once the demo video + social post land, and **Bonus Quest
-Champion** ($2,000) by stacking the above.
 
 > **Sponsor prize:** built on OpenBMB's **MiniCPM5-1B**, so eligible for **Best MiniCPM Build** (OpenBMB).
 
