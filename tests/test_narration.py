@@ -84,6 +84,23 @@ def test_geo_gazetteer_allows_real_districts():
     assert ok, offenders
 
 
+def test_geo_gazetteer_allows_landmarks_but_not_eiffel():
+    """Expanded gazetteer lets a guide name real landmarks (Arc de Triomphe,
+    Sacré-Cœur) for scene-setting, while the Eiffel Tower — the planted
+    hallucination — must STILL be caught."""
+    from discoverroute.narrate import gazetteer
+    geo = gazetteer.geo_terms("paris", "Paris")
+    ok, off = grounding.verify_grounded(
+        "From the Arc de Triomphe, wander toward Sacré-Cœur, passing "
+        "Jardin des Plantes.", POIS, start_label="Bastille", extra_allowed=geo)
+    assert ok, off
+    # the famous-landmark allowlist must not punch a hole for the planted one
+    ok2, off2 = grounding.verify_grounded(
+        "A lovely detour past the Eiffel Tower, then Jardin des Plantes.",
+        POIS, start_label="Bastille", extra_allowed=geo)
+    assert not ok2 and any("Eiffel" in o for o in off2)
+
+
 def test_geo_gazetteer_still_blocks_invented_venue():
     """Loosening for districts must NOT let an invented venue through."""
     from discoverroute.narrate import gazetteer
