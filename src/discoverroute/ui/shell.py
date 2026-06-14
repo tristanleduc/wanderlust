@@ -82,6 +82,7 @@ body{ font-family:'DM Sans',ui-sans-serif,system-ui,sans-serif; color:var(--dr-i
 /* a leading pin/flag glyph for the start & destination fields */
 .field-wrap{ position:relative; }
 .field-wrap > input[type=text]{ padding-left:34px; }
+.field-wrap > select.dr-field{ padding-left:34px; cursor:pointer; }
 .field-wrap::before{ content:attr(data-glyph); position:absolute; left:12px; top:50%;
   transform:translateY(-50%); font-size:14px; pointer-events:none; z-index:2; line-height:1; }
 
@@ -314,6 +315,21 @@ def _vibe_chips() -> str:
     return f'<div class="vibe-chips" id="dr-vibe-chips">{chips}</div>'
 
 
+# (slug, label) for the city picker: Paris (the always-on default) then every
+# configured core. The chosen slug is sent to /plan and wins area resolution.
+_CITY_CHOICES = [("paris", "Paris")] + [
+    (slug, spec["label"]) for slug, spec in config.CITIES.items()
+]
+
+
+def _city_options() -> str:
+    opts = "".join(
+        f'<option value="{slug}"{" selected" if slug == "paris" else ""}>{label}</option>'
+        for slug, label in _CITY_CHOICES
+    )
+    return opts
+
+
 def _left_panel() -> str:
     return f"""
 <aside class="left-panel" id="left-panel">
@@ -337,6 +353,15 @@ def _left_panel() -> str:
     {_vibe_chips()}
   </div>
 
+  <div class="dr-control">
+    <label class="dr-label" for="dr-city">City</label>
+    <div class="field-wrap" data-glyph="🌍">
+      <select id="dr-city" class="dr-field">{_city_options()}</select>
+    </div>
+    <div class="dr-help">Pick the city to explore — Start &amp; Destination should be
+      places within it.</div>
+  </div>
+
   <div class="dr-control combo">
     <label class="dr-label" for="dr-start">Start</label>
     <div class="field-wrap" data-glyph="📍">
@@ -344,8 +369,7 @@ def _left_panel() -> str:
              value="Place de la République, Paris">
     </div>
     <div class="combo-list" id="dr-start-list"></div>
-    <div class="dr-help">📍 Paris · London · Barcelona · New York — try a landmark
-      (e.g. "British Museum, London"), not a street address.</div>
+    <div class="dr-help">Try a landmark (e.g. "British Museum"), not a street address.</div>
   </div>
 
   <div class="dr-control combo">
@@ -781,6 +805,7 @@ async function plan() {
       adventurousness: +$("dr-adv-i").value,
       prefer_green: +$("dr-green-i").value, prefer_quiet: +$("dr-quiet-i").value,
       profile: JSON.stringify(readProfile()),
+      city: $("dr-city").value,
     });
     renderResult((r.data && r.data[0]) || {});
   } catch (e) {

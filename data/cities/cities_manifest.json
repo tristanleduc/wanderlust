@@ -52,5 +52,95 @@
     "build_date": "2026-06-13",
     "source": "OpenStreetMap",
     "license": "ODbL \u2014 \u00a9 OpenStreetMap contributors"
+  },
+  "sanfrancisco": {
+    "label": "San Francisco",
+    "center": [
+      37.788,
+      -122.4075
+    ],
+    "bbox": [
+      -122.44387424116717,
+      37.75905120318436,
+      -122.37112575883283,
+      37.81694879681563
+    ],
+    "tz": "America/Los_Angeles",
+    "poi_count": 3802,
+    "build_date": "2026-06-14",
+    "source": "OpenStreetMap",
+    "license": "ODbL \u2014 \u00a9 OpenStreetMap contributors"
+  },
+  "tokyo": {
+    "label": "Tokyo",
+    "center": [
+      35.6762,
+      139.7653
+    ],
+    "bbox": [
+      139.72991277516684,
+      35.64725120318437,
+      139.80068722483315,
+      35.705148796815635
+    ],
+    "tz": "Asia/Tokyo",
+    "poi_count": 10051,
+    "build_date": "2026-06-14",
+    "source": "OpenStreetMap",
+    "license": "ODbL \u2014 \u00a9 OpenStreetMap contributors"
+  },
+  "mumbai": {
+    "label": "Mumbai",
+    "center": [
+      18.922,
+      72.8347
+    ],
+    "bbox": [
+      72.80431189708523,
+      18.893051203184367,
+      72.86508810291477,
+      18.950948796815634
+    ],
+    "tz": "Asia/Kolkata",
+    "poi_count": 413,
+    "build_date": "2026-06-14",
+    "source": "OpenStreetMap",
+    "license": "ODbL \u2014 \u00a9 OpenStreetMap contributors"
+  },
+  "shanghai": {
+    "label": "Shanghai",
+    "center": [
+      31.234,
+      121.481
+    ],
+    "bbox": [
+      121.4473812266571,
+      31.205051203184368,
+      121.51461877334289,
+      31.262948796815635
+    ],
+    "tz": "Asia/Shanghai",
+    "poi_count": 2071,
+    "build_date": "2026-06-14",
+    "source": "OpenStreetMap",
+    "license": "ODbL \u2014 \u00a9 OpenStreetMap contributors"
+  },
+  "berlin": {
+    "label": "Berlin",
+    "center": [
+      52.517,
+      13.3889
+    ],
+    "bbox": [
+      13.341661332878164,
+      52.48805120318437,
+      13.436138667121835,
+      52.54594879681564
+    ],
+    "tz": "Europe/Berlin",
+    "poi_count": 10810,
+    "build_date": "2026-06-14",
+    "source": "OpenStreetMap",
+    "license": "ODbL \u2014 \u00a9 OpenStreetMap contributors"
   }
 }

@@ -56,11 +56,12 @@ def plan_route(
     prefer_quiet: float = 0.0,
     profile: dict | None = None,
     n_alternatives: int = 1,
+    city: str = "",
 ) -> PlanResult:
     """Plan a route + log one plan-level trace row. Never raises for user errors."""
     result = _plan_route_impl(
         start_query, dest_query, mode, budget, vibe, adventurousness,
-        prefer_green, prefer_quiet, profile, n_alternatives,
+        prefer_green, prefer_quiet, profile, n_alternatives, city,
     )
     try:  # one Open-Trace / Field-Notes row per call; never break a route
         from discoverroute.interpret.affinity import source_of
@@ -93,6 +94,7 @@ def _plan_route_impl(
     prefer_quiet: float = 0.0,
     profile: dict | None = None,
     n_alternatives: int = 1,
+    city: str = "",
 ) -> PlanResult:
     """Plan a route. Returns a PlanResult; never raises for user-facing errors."""
     # Validate & clamp inputs up front (an unknown mode would silently route at
@@ -110,7 +112,7 @@ def _plan_route_impl(
         # Pick the area: Paris is pre-baked/instant; any other city is fetched
         # live from OSM (only the box spanning the two endpoints).
         area = area_mod.resolve_area(
-            start, end, label=_city_label(start_query, dest_query))
+            start, end, label=_city_label(start_query, dest_query), city=city)
         graph = area.graph
         plain = g.plain_route(graph, *start, *end, mode=mode)
     except RouteError as exc:

@@ -87,10 +87,33 @@ def corridor_halfwidth_m(budget: float) -> float:
 CITY_DATA_DIR = DATA_DIR / "cities"
 CITIES_MANIFEST_PATH = CITY_DATA_DIR / "cities_manifest.json"
 CITIES = {
-    "london":    {"label": "London",    "center": (51.5118, -0.1230), "radius_m": 3200, "tz": "Europe/London"},
-    "barcelona": {"label": "Barcelona", "center": (41.3870,  2.1700), "radius_m": 3200, "tz": "Europe/Madrid"},
-    "newyork":   {"label": "New York",  "center": (40.7560, -73.9845), "radius_m": 3200, "tz": "America/New_York"},
+    "london":       {"label": "London",        "center": (51.5118, -0.1230), "radius_m": 3200, "tz": "Europe/London"},
+    "barcelona":    {"label": "Barcelona",     "center": (41.3870,  2.1700), "radius_m": 3200, "tz": "Europe/Madrid"},
+    "newyork":      {"label": "New York",      "center": (40.7560, -73.9845), "radius_m": 3200, "tz": "America/New_York"},
+    "sanfrancisco": {"label": "San Francisco", "center": (37.7880, -122.4075), "radius_m": 3200, "tz": "America/Los_Angeles"},
+    "tokyo":        {"label": "Tokyo",         "center": (35.6762, 139.7653), "radius_m": 3200, "tz": "Asia/Tokyo"},
+    "mumbai":       {"label": "Mumbai",        "center": (18.9220,  72.8347), "radius_m": 3200, "tz": "Asia/Kolkata"},
+    "shanghai":     {"label": "Shanghai",      "center": (31.2340, 121.4810), "radius_m": 3200, "tz": "Asia/Shanghai"},
+    "berlin":       {"label": "Berlin",        "center": (52.5170,  13.3889), "radius_m": 3200, "tz": "Europe/Berlin"},
 }
+
+# Secondary city cores are hosted as a HF *dataset* (just a folder of files), not
+# committed into this repo — so the Space/app image stays lean and scales past a
+# handful of cities. Each `<slug>_walk.graphml` + `<slug>_pois.parquet` is pulled
+# on demand (public repo => no token needed) and cached into CITY_DATA_DIR, after
+# which the normal on-disk path (city_graph_path/city_pois_path) just works.
+CITIES_DATASET_REPO = os.environ.get(
+    "DISCOVERROUTE_CITIES_REPO", "build-small-hackathon/discoverroute-cities"
+)
+# Cities to download + load into memory at boot ("pre-warm") so the first user to
+# pick one waits 0 s. Default: every configured city. Boot cost is paid once,
+# before any request, and keeps request-time fully offline (files already local).
+# Override with a comma-separated slug list, e.g. "london,newyork,tokyo".
+PREWARM_CITIES = [
+    s.strip() for s in os.environ.get(
+        "DISCOVERROUTE_PREWARM_CITIES", ",".join(CITIES)
+    ).split(",") if s.strip() in CITIES
+]
 
 
 def city_graph_path(slug: str) -> Path:

@@ -59,7 +59,7 @@ def suggest(query: str = "") -> list:
 def plan(start: str, dest: str, mode: str = "walk", budget: float = 0.5,
          vibe: str = "", adventurousness: float = 0.3,
          prefer_green: float = 0.0, prefer_quiet: float = 0.0,
-         profile: str = "") -> dict:
+         profile: str = "", city: str = "") -> dict:
     """Plan a route and return everything the custom frontend renders."""
     try:
         profile_obj = json.loads(profile) if profile else {}
@@ -70,6 +70,7 @@ def plan(start: str, dest: str, mode: str = "walk", budget: float = 0.5,
         start_query=start, dest_query=dest, mode=mode, budget=budget, vibe=vibe,
         adventurousness=adventurousness, prefer_green=prefer_green,
         prefer_quiet=prefer_quiet, profile=profile_obj, n_alternatives=N_ALTERNATIVES,
+        city=city,
     )
 
     if result.error:
@@ -160,6 +161,18 @@ def warmup() -> None:
         print("[warmup] routing graph + POIs ready", flush=True)
     except Exception as exc:  # noqa: BLE001
         print(f"[warmup] graph FAILED: {exc}", flush=True)
+
+    # Pre-warm the secondary cities: pull each from the HF dataset (if not already
+    # local) and load it into memory NOW, at boot, so the first user to pick a city
+    # waits 0 s — and request-time stays fully offline (files are local by then).
+    from discoverroute import config
+    from discoverroute.routing import area as area_mod
+    for slug in config.PREWARM_CITIES:
+        try:
+            area_mod._city_area(slug)  # downloads if needed + loads + caches
+            print(f"[warmup] city ready: {slug}", flush=True)
+        except Exception as exc:  # noqa: BLE001 - one bad city must not block boot
+            print(f"[warmup] city {slug} skipped: {exc}", flush=True)
     try:
         from discoverroute.interpret import embed
         embed.vibe_to_affinity("quiet green wander")

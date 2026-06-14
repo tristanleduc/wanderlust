@@ -31,5 +31,16 @@ test_output.log
 # They are committed for the Hugging Face Space so it needs no runtime download.
 # If they exceed Space size limits, switch to git-lfs (see PROGRESS.md).
 
+# Secondary city cores now live in the HF dataset
+# (build-small-hackathon/discoverroute-cities) and are pulled + pre-warmed at
+# boot — so DON'T commit newly baked cores into the repo (keeps the image lean).
+# London/Barcelona/New York predate this and stay tracked; this only ignores new
+# untracked cores (San Francisco, Tokyo, Mumbai, Shanghai, Berlin, …).
+data/cities/*_walk.graphml
+data/cities/*_pois.parquet
+!data/cities/london_*
+!data/cities/barcelona_*
+!data/cities/newyork_*
+
 # Inference trace logs (Open Trace) — written at runtime, pushed to HF Dataset
 logs/

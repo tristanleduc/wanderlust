@@ -173,17 +173,41 @@ def _in_bbox(pt, bbox) -> bool:
 
 
 def available_cities() -> list[str]:
-    """Slugs of pre-baked cities whose data is actually present on disk."""
+    """Slugs of pre-baked cities whose data is present on disk (incl. pulled)."""
     return [s for s in config.CITIES
             if config.city_graph_path(s).exists() and config.city_pois_path(s).exists()]
 
 
+def ensure_city_files(slug: str) -> None:
+    """Make a city's graph + POI parquet exist locally, pulling from the HF
+    dataset if absent. Downloads into CITY_DATA_DIR so every existing on-disk
+    code path (city_graph_path/available_cities) then works unchanged. The repo
+    is public, so no token is needed; the file is cached after the first pull.
+    """
+    targets = [config.city_graph_path(slug), config.city_pois_path(slug)]
+    if all(p.exists() for p in targets):
+        return
+    from huggingface_hub import hf_hub_download
+    config.CITY_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    for path in targets:
+        if path.exists():
+            continue
+        t0 = time.time()
+        hf_hub_download(
+            repo_id=config.CITIES_DATASET_REPO, repo_type="dataset",
+            filename=path.name, local_dir=str(config.CITY_DATA_DIR),
+        )
+        logger.info("pulled %s from %s in %.1fs",
+                    path.name, config.CITIES_DATASET_REPO, time.time() - t0)
+
+
 @functools.lru_cache(maxsize=8)
 def _city_area(slug: str) -> Area:
-    """Load a pre-baked city (committed graph + parquet) as an offline Area."""
+    """Load a pre-baked city as an offline Area, pulling its files if needed."""
     from discoverroute.routing import graph as g
 
     spec = config.CITIES[slug]
+    ensure_city_files(slug)
     graph = ox.load_graphml(config.city_graph_path(slug))
     df = pd.read_parquet(config.city_pois_path(slug))
     origin = tuple(spec["center"])
@@ -244,14 +268,25 @@ def _build_ondemand(bbox, label: str) -> Area:
 
 
 def resolve_area(start: tuple[float, float], end: tuple[float, float],
-                 label: str = "") -> Area:
+                 label: str = "", city: str = "") -> Area:
     """Pick the right area for an A→B request.
 
-    Both endpoints inside Paris => the instant pre-baked area. Otherwise fetch a
-    just-big-enough box around the two points live from OSM. Endpoints too far
-    apart for an on-demand box are rejected with a friendly RouteError.
+    An explicit ``city`` slug (from the UI picker) wins outright — the pre-baked
+    core is loaded (pulled from the dataset if needed). Otherwise both endpoints
+    inside Paris => the pre-baked Paris area; both inside one cached city core =>
+    that core; anything else is fetched just-big-enough live from OSM. Endpoints
+    too far apart for an on-demand box are rejected with a friendly RouteError.
     """
     from discoverroute.routing.graph import RouteError
+
+    # 0) Explicit city pick (the UI dropdown) — load that core, full stop.
+    slug = (city or "").strip().lower()
+    if slug:
+        if slug == "paris":
+            return _paris_area()
+        if slug in config.CITIES:
+            return _city_area(slug)
+        # Unknown slug => ignore and fall through to inference (never crash a route).
 
     # 1) Paris — full pre-baked city (instant, offline).
     if config.in_paris(*start) and config.in_paris(*end):
