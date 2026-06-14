@@ -66,10 +66,43 @@ def _push_hf_async(row: dict, kind: str) -> None:
                 repo_id=config.TRACE_REPO,
                 repo_type="dataset",
             )
-        except Exception:  # noqa: BLE001 - never surface trace-push failures
-            pass
+        except Exception as exc:  # noqa: BLE001 - never break a route, but DO log it
+            # A swallowed push failure (bad/scopeless token, wrong repo) is exactly
+            # what made the trace dataset silently never appear. Log it so the Space
+            # operator can see why instead of debugging blind.
+            print(f"[trace] push to {config.TRACE_REPO} FAILED "
+                  f"({type(exc).__name__}): {exc}", flush=True)
 
     threading.Thread(target=_push, daemon=True).start()
+
+
+def selftest() -> None:
+    """Boot-time check: is HF_TOKEN present and can it write to TRACE_REPO?
+
+    Prints a clear verdict to the Space logs so a misconfigured secret (missing,
+    wrong name, or a token without org write) is obvious instead of failing silently.
+    """
+    token = config.HF_TOKEN
+    if not token:
+        print("[trace] HF_TOKEN NOT detected — traces stay local only. Set a Space "
+              "secret named exactly 'HF_TOKEN' to a write token to enable Hub push.",
+              flush=True)
+        return
+    print(f"[trace] HF_TOKEN detected (len={len(token)}); testing write to "
+          f"{config.TRACE_REPO} …", flush=True)
+    try:
+        from huggingface_hub import HfApi
+        HfApi(token=token).upload_file(
+            path_or_fileobj=b'{"selftest": true}',
+            path_in_repo="_selftest/boot.json",
+            repo_id=config.TRACE_REPO, repo_type="dataset",
+            commit_message="trace selftest",
+        )
+        print(f"[trace] ✅ push OK — {config.TRACE_REPO} is writable; traces will flow.",
+              flush=True)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[trace] ❌ push FAILED ({type(exc).__name__}): {exc} — the token "
+              "likely lacks WRITE access to the build-small-hackathon org.", flush=True)
 
 
 def log_trace(call_type: str, input_data: dict, output_data: dict,

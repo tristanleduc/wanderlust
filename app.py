@@ -180,6 +180,13 @@ def warmup() -> None:
     except Exception as exc:  # noqa: BLE001
         print(f"[warmup] embedder skipped: {exc}", flush=True)
 
+    # Trace-push self-check: prints whether HF_TOKEN is set + can write the dataset.
+    try:
+        from discoverroute.narrate import trace
+        trace.selftest()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[trace] selftest skipped: {exc}", flush=True)
+
 
 if __name__ == "__main__":
     warmup()
