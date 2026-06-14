@@ -254,8 +254,11 @@ def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
     system = (
         f"You are a {guide}local — a sharp, warm city guide who actually walks these "
         "streets. Write a vivid, first-person walk for this route.\n"
-        "FORMAT — this matters: use EXACTLY ONE markdown heading, an evocative title "
-        "on the first line (`### Like This`). After that, write 2–4 flowing paragraphs "
+        "FORMAT — this matters: the first line is EXACTLY ONE markdown H3 heading — "
+        "invent a short, evocative title for THIS specific walk (3–6 words; e.g. "
+        "'### The Quiet Green Mile', '### A West Village Wander', '### Midtown by "
+        "Twilight' — make up your own, do not reuse these). After that, write 2–4 "
+        "flowing paragraphs "
         "of continuous prose. Do NOT number the stops. Do NOT give any stop its own "
         "heading or bullet. If there are many stops, weave several into each paragraph "
         "rather than a sentence each — keep it moving and finish before you run long. "
