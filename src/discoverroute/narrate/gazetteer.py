@@ -58,6 +58,33 @@ CITY_GAZETTEER: dict[str, list[str]] = {
         "the Upper East Side", "Times Square", "Central Park", "Hudson",
         "East River", "Broadway", "Fifth Avenue", "the Flatiron",
     ],
+    "sanfrancisco": [
+        "San Francisco", "Union Square", "the Financial District", "North Beach",
+        "Chinatown", "Nob Hill", "Russian Hill", "Telegraph Hill", "the Embarcadero",
+        "SoMa", "the Mission", "Hayes Valley", "the Tenderloin", "Fisherman's Wharf",
+        "the Marina", "Market Street", "the Bay", "San Francisco Bay",
+    ],
+    "tokyo": [
+        "Tokyo", "Ginza", "Marunouchi", "Nihonbashi", "Yurakucho", "Tokyo Station",
+        "the Imperial Palace", "Chiyoda", "Hibiya", "Kanda", "Otemachi",
+        "Shimbashi", "Tsukiji", "the Sumida", "the Sumida River",
+    ],
+    "mumbai": [
+        "Mumbai", "Colaba", "Fort", "Marine Drive", "Churchgate", "Nariman Point",
+        "Kala Ghoda", "Ballard Estate", "Cuffe Parade", "South Mumbai",
+        "the Gateway of India", "the Arabian Sea",
+    ],
+    "shanghai": [
+        "Shanghai", "the Bund", "People's Square", "Huangpu", "the Huangpu River",
+        "Nanjing Road", "Yu Garden", "the French Concession", "Jing'an",
+        "Lujiazui", "Xintiandi", "the Old City",
+    ],
+    "berlin": [
+        "Berlin", "Mitte", "the Spree", "Museum Island", "Unter den Linden",
+        "Alexanderplatz", "the Brandenburg Gate", "Kreuzberg", "Prenzlauer Berg",
+        "Friedrichshain", "Hackescher Markt", "Gendarmenmarkt", "Potsdamer Platz",
+        "the Tiergarten",
+    ],
 }
 
 

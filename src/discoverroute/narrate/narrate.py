@@ -16,27 +16,81 @@ import os
 from discoverroute.data import taxonomy
 from discoverroute.narrate import grounding
 
-# Phrasing per category for the template. Generic (no external facts) so the only
-# proper noun is the POI's own name -> grounded by construction.
-_REASON = {
-    "park_garden": "a breath of green to slow down in",
-    "water_feature": "a bit of water and calm",
-    "viewpoint": "a view worth the pause",
-    "monument_historic": "a piece of the city's history",
-    "museum_gallery": "art and ideas just off your path",
-    "artwork": "a splash of public art",
-    "place_of_worship": "a quiet, still interior",
-    "library": "a hush of books",
-    "bookshop": "shelves worth a browse",
-    "theatre_cinema": "a little drama on the way",
-    "cafe": "a coffee-stop pause",
-    "bakery_food_shop": "something good to eat",
-    "restaurant": "a proper bite",
-    "bar_pub": "a lively drink",
-    "market": "stalls and bustle",
-    "specialty_shop": "a characterful find",
-    "attraction": "a notable stop",
+# Phrasing per category for the template. Several variants each so a route with
+# three parks doesn't read the same line three times — the only proper noun is
+# still the POI's own name, so it stays grounded by construction.
+_REASONS = {
+    "park_garden": ["a breath of green to slow down in",
+                    "a pocket of green to catch your breath",
+                    "leaves and quiet just off the pavement",
+                    "a green pause from the noise"],
+    "water_feature": ["a bit of water and calm", "the cool of moving water",
+                      "a glassy, still moment"],
+    "viewpoint": ["a view worth the pause", "the city opening up below you",
+                  "a long look across the rooftops"],
+    "monument_historic": ["a piece of the city's history",
+                          "a marker of the past hiding in plain sight",
+                          "old stone with a story"],
+    "museum_gallery": ["art and ideas just off your path", "a room of art to wander",
+                       "a quick dose of culture"],
+    "artwork": ["a splash of public art", "an unexpected splash of colour",
+                "street art worth a glance"],
+    "place_of_worship": ["a quiet, still interior", "a hush behind heavy doors",
+                         "cool stone and coloured light"],
+    "library": ["a hush of books", "shelves and silence", "a reader's pause"],
+    "bookshop": ["shelves worth a browse", "a browse you'll lose time in",
+                 "stacks to get lost in"],
+    "theatre_cinema": ["a little drama on the way", "the glow of a marquee",
+                       "a stage-door moment"],
+    "cafe": ["a coffee-stop pause", "a caffeine pit-stop",
+             "a window seat and a flat white"],
+    "bakery_food_shop": ["something good to eat", "a warm-from-the-oven detour",
+                         "a snack worth the smell"],
+    "restaurant": ["a proper bite", "a table worth sitting down for",
+                   "a real meal mid-route"],
+    "bar_pub": ["a lively drink", "a round before you carry on",
+                "a stool and a cold one"],
+    "market": ["stalls and bustle", "noise, colour and haggling", "a market's churn"],
+    "specialty_shop": ["a characterful find", "an oddball little shop",
+                       "something you didn't know you wanted"],
+    "attraction": ["a notable stop", "a landmark worth the look",
+                   "an only-here kind of place"],
 }
+
+# One evocative word per category, for composing a route title.
+_TITLE_WORD = {
+    "park_garden": "green", "water_feature": "waterside", "viewpoint": "scenic",
+    "monument_historic": "storied", "museum_gallery": "arty", "artwork": "arty",
+    "place_of_worship": "quiet", "library": "bookish", "bookshop": "bookish",
+    "theatre_cinema": "dramatic", "cafe": "caffeinated", "bakery_food_shop": "tasty",
+    "restaurant": "tasty", "bar_pub": "lively", "market": "bustling",
+    "specialty_shop": "quirky", "attraction": "landmark",
+}
+
+
+def _reason_for(category: str, occurrence: int) -> str:
+    """Pick a reason variant, rotating by how many times this category appeared."""
+    variants = _REASONS.get(category)
+    if not variants:
+        return "a spot worth a look"
+    return variants[occurrence % len(variants)]
+
+
+def _route_title(pois, mode, city_label="") -> str:
+    """A short, evocative, grounded headline for the whole walk (no venue names)."""
+    from collections import Counter
+    counts = Counter(p.category for p in pois)
+    words: list[str] = []
+    for cat, _ in counts.most_common():
+        w = _TITLE_WORD.get(cat)
+        if w and w not in words:
+            words.append(w)
+        if len(words) == 2:
+            break
+    glyph = "🚲" if mode == "bike" else "🥾"
+    mood = " & ".join(words) if words else "discovery"
+    where = f" through {city_label}" if city_label else ""
+    return f"{glyph} A {mood} {mode}{where}"
 
 
 def _verb(posture: str) -> str:
@@ -57,7 +111,8 @@ def _hours_badge(poi, posture_val: str) -> str:
 
 
 def template_narration(plain, discovery, pois, vibe, mode, start_label="",
-                       end_label="", posture=None, weights=None, weak=False) -> str:
+                       end_label="", posture=None, weights=None, weak=False,
+                       city_label="") -> str:
     posture = posture or {}
     n = len(pois)
     extra = round(discovery.time_min + getattr(discovery, "dwell_s", 0.0) / 60.0
@@ -73,7 +128,8 @@ def template_narration(plain, discovery, pois, vibe, mode, start_label="",
                        f"varied walk worth taking")
     else:
         vibe_clause = f" to match your *{v}* mood" if v else ""
-    lead = "### Why this route\n"
+    title = _route_title(pois, mode, city_label)
+    lead = f"### {title}\n"
     lead += (
         f"Spending **{extra} extra {unit}**{vibe_clause}, your {mode} threads "
         f"**{n} {place_word}** between {start_label or 'the start'} and "
@@ -86,18 +142,15 @@ def template_narration(plain, discovery, pois, vibe, mode, start_label="",
     # reads as a lie. Each stop's own reason text conveys its appeal honestly; the
     # interpretation panel already shows how the vibe was read.
     lines = [lead]
-    prev_cat = None
+    seen: dict[str, int] = {}  # rotate reason variants per category
     for i, p in enumerate(pois, 1):
         label = taxonomy.display_label(p)
-        if p.category == prev_cat:  # avoid 3 identical reason lines in a row
-            reason = f"another {taxonomy.pretty_category(p.category)} along the way"
-        else:
-            reason = _REASON.get(p.category, "a spot worth a look")
-        prev_cat = p.category
+        occ = seen.get(p.category, 0)
+        seen[p.category] = occ + 1
+        reason = _reason_for(p.category, occ)
         verb = _verb(posture.get(p.category, "pass"))
-        tie = ""
         badge = _hours_badge(p, posture.get(p.category, "pass"))
-        lines.append(f"{i}. **{label}** — {verb.lower()} for {reason}{tie}.{badge}")
+        lines.append(f"{i}. **{label}** — {verb.lower()} for {reason}.{badge}")
     lines.append(
         f"\nThen on to {end_label or 'your destination'}. Every place above is a "
         f"real spot on your route — nothing invented."
@@ -144,7 +197,8 @@ def narrate(plain, discovery, pois, vibe="", mode="walk", start_label="",
     (e.g. "London" instead of the old hardcoded "Parisian").
     """
     template = template_narration(
-        plain, discovery, pois, vibe, mode, start_label, end_label, posture, weights, weak
+        plain, discovery, pois, vibe, mode, start_label, end_label, posture, weights,
+        weak, city_label
     )
     if not llm_available():
         return template, False
@@ -207,29 +261,33 @@ def _llm_narration(plain, discovery, pois, vibe, mode, start_label, end_label,
     context_terms = ", ".join(geo_allowed) if geo_allowed else ""
 
     system = (
-        f"You are a {guide}city guide who knows every street. Write a warm, "
-        "vivid, first-person itinerary for this route — sensory and specific, "
-        "the kind of thing a local would actually say. Reference the user's "
-        "stated vibe directly, and in one sentence per stop say why it fits.\n"
-        "You MAY set the scene with the districts, river, and landmarks listed "
-        "under 'You may reference' — name them freely to give the walk a sense "
-        "of place.\n"
-        "HARD RULE: every specific stop you tell the user to visit must be one of "
-        "the 'Ordered stops', spelled exactly. Never invent a café, shop, museum, "
-        "restaurant or any other named venue that isn't in that list. If unsure, "
-        "describe a place by its type, not a made-up name.\n"
-        "Format as markdown with one bold header per stop."
+        f"You are a {guide}local — a sharp, warm city guide who actually walks these "
+        "streets. Write a short, vivid, first-person itinerary for this route. Make "
+        "it FLOW like a story, not a checklist: open with a one-line evocative title "
+        "(as a markdown `### ` heading), then carry the reader from start to finish in "
+        "a few short paragraphs, weaving the stops in with sensory detail and natural "
+        "transitions ('a block on', 'just around the corner', 'as the street opens up'). "
+        "Reference the user's vibe in your own words. Bold each real stop's name the "
+        "first time it appears.\n"
+        "Set the scene freely with the districts, river, and landmarks under 'You may "
+        "reference' — name them to give the walk a sense of place, mention the time of "
+        "day or the light, describe what a place feels like. Have a voice.\n"
+        "ONE hard rule, and only one: do not invent a *named venue to visit* — every "
+        "place you tell the reader to actually stop at or pass must be one of the "
+        "'Ordered stops' (spelled close to the list) or the start/destination. You "
+        "don't need a name for every sentence; describe freely, just never fabricate a "
+        "specific café/shop/museum name that isn't on the list."
     )
     user = (
         f"Vibe: {vibe or 'open to anything'}\n"
         + (f"Weights extracted: {weights_line}\n" if weights_line else "")
         + f"Mode: {mode} from {start_label or 'the start'} to "
         f"{end_label or 'the destination'}\n"
-        + (f"You may reference (scene-setting only, do not list as stops): "
-           f"{context_terms}\n" if context_terms else "")
-        + f"Ordered stops (the ONLY venues you may name):\n{bullet}\n"
+        + (f"You may reference (scene-setting, name freely): {context_terms}\n"
+           if context_terms else "")
+        + f"Ordered stops (the only venues to route through, in order):\n{bullet}\n"
         f"Total time: {total_min} minutes (about {extra} minutes of discovery)\n\n"
-        "Write the itinerary."
+        "Write the titled, flowing itinerary."
     )
     messages = [{"role": "system", "content": system},
                 {"role": "user", "content": user}]

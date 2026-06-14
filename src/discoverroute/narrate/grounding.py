@@ -52,11 +52,25 @@ _COMMON = {
     "roman", "gothic", "medieval", "renaissance", "baroque", "romanesque",
     "neoclassical", "art", "deco", "nouveau", "modern", "ancient", "classical",
     "victorian", "georgian", "haussmann", "french", "parisian", "english",
-    "british", "spanish", "catalan", "american", "european",
+    "british", "spanish", "catalan", "american", "european", "japanese",
+    "indian", "chinese", "german", "italian",
     "river", "riverside", "quarter", "district", "neighbourhood", "neighborhood",
     "bank", "island", "hill", "boulevard", "avenue", "street", "lane", "square",
     "park", "garden", "gardens", "bridge", "quay", "embankment", "canal",
     "market", "quartier", "rue", "pont", "jardin", "plaza", "passeig",
+    # days, times of day, light/weather — scene-setting a guide leans on
+    "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+    "morning", "afternoon", "evening", "night", "midday", "noon", "dusk", "dawn",
+    "sunset", "sunrise", "light", "sun", "shade", "warm", "cool", "golden",
+    # generic size/age/feel adjectives + venue-type nouns (stripped so a model's
+    # abbreviation of a real name still matches its allowed form)
+    "old", "new", "little", "grand", "great", "small", "narrow", "wide", "hidden",
+    "leafy", "cobbled", "historic", "lively", "sleepy", "busy",
+    "church", "cathedral", "chapel", "basilica", "temple", "mosque", "synagogue",
+    "gallery", "museum", "cafe", "café", "bakery", "shop", "store", "bar", "pub",
+    "monument", "memorial", "library", "theatre", "theater", "cinema", "hall",
+    "station", "court", "fountain", "statue", "tower", "gate", "house", "centre",
+    "center", "city", "town", "village", "waterfront",
 }
 
 _TOKEN_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ0-9'’.\-]*")
@@ -155,7 +169,19 @@ def _is_grounded_mention(mention: str, allowed_norm: list[str]) -> bool:
     # the reverse (an allowed name being a substring of a longer mention): that is
     # the hallucination vector — appending an invented qualifier to a real name,
     # e.g. "Café de la Paix" -> "Café de la Paix sur Seine".
-    return any(core in a for a in allowed_norm if a)
+    if any(core in a for a in allowed_norm if a):
+        return True
+    # Softer match (so we don't throw away good prose over word-order / a dropped
+    # article): grounded if EVERY significant token of the mention appears within a
+    # single allowed name. A wholly invented venue ("Blue Bottle") shares no tokens
+    # with any allowed name and is still rejected, so the no-invented-venue
+    # guarantee holds — we just stop nitpicking real names the model rephrased.
+    sig = [t for t in toks if len(t) >= 3 and t not in _COMMON]
+    if sig:
+        for a in allowed_norm:
+            if a and all(t in a.split() for t in sig):
+                return True
+    return False
 
 
 def verify_grounded(text: str, pois, start_label="", end_label="",
