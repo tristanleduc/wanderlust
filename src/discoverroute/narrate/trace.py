@@ -26,6 +26,25 @@ PLANS_PATH = LOG_DIR / "plans.jsonl"
 _seq_lock = threading.Lock()
 _seq = 0
 
+# upload_file does NOT auto-create a missing repo (unlike the `hf upload` CLI), so
+# the dataset must be created once before the first push or every push 404s. Guard
+# the create with a flag so we only attempt it once per process.
+_repo_lock = threading.Lock()
+_repo_ready = False
+
+
+def _ensure_repo(token: str) -> None:
+    """Create the trace dataset once (idempotent). Raises on a real auth failure."""
+    global _repo_ready
+    with _repo_lock:
+        if _repo_ready:
+            return
+        from huggingface_hub import HfApi
+        HfApi(token=token).create_repo(
+            repo_id=config.TRACE_REPO, repo_type="dataset", exist_ok=True, private=False
+        )
+        _repo_ready = True
+
 
 def _next_seq() -> int:
     global _seq
@@ -59,6 +78,7 @@ def _push_hf_async(row: dict, kind: str) -> None:
         try:
             from huggingface_hub import HfApi
 
+            _ensure_repo(token)  # create the dataset on first push (no auto-create)
             api = HfApi(token=token)
             api.upload_file(
                 path_or_fileobj=json.dumps(row, ensure_ascii=False).encode("utf-8"),
@@ -88,10 +108,11 @@ def selftest() -> None:
               "secret named exactly 'HF_TOKEN' to a write token to enable Hub push.",
               flush=True)
         return
-    print(f"[trace] HF_TOKEN detected (len={len(token)}); testing write to "
+    print(f"[trace] HF_TOKEN detected (len={len(token)}); ensuring + testing write to "
           f"{config.TRACE_REPO} …", flush=True)
     try:
         from huggingface_hub import HfApi
+        _ensure_repo(token)  # create the dataset if missing (the actual fix)
         HfApi(token=token).upload_file(
             path_or_fileobj=b'{"selftest": true}',
             path_in_repo="_selftest/boot.json",
@@ -101,8 +122,8 @@ def selftest() -> None:
         print(f"[trace] ✅ push OK — {config.TRACE_REPO} is writable; traces will flow.",
               flush=True)
     except Exception as exc:  # noqa: BLE001
-        print(f"[trace] ❌ push FAILED ({type(exc).__name__}): {exc} — the token "
-              "likely lacks WRITE access to the build-small-hackathon org.", flush=True)
+        print(f"[trace] ❌ push FAILED ({type(exc).__name__}): {exc} — if 403, the "
+              "token lacks WRITE access to the build-small-hackathon org.", flush=True)
 
 
 def log_trace(call_type: str, input_data: dict, output_data: dict,
