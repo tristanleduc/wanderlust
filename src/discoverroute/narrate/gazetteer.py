@@ -57,6 +57,10 @@ CITY_GAZETTEER: dict[str, list[str]] = {
         "Chelsea", "the Lower East Side", "the Upper West Side",
         "the Upper East Side", "Times Square", "Central Park", "Hudson",
         "East River", "Broadway", "Fifth Avenue", "the Flatiron",
+        "Brooklyn", "Brooklyn Heights", "Saint Patrick's Cathedral", "St. Patrick's",
+        "the Garment District", "Hell's Kitchen", "Murray Hill", "Koreatown",
+        "Herald Square", "Madison Square", "the High Line", "Rockefeller Center",
+        "Grand Central", "Penn Station", "Bryant Park",
     ],
     "sanfrancisco": [
         "San Francisco", "Union Square", "the Financial District", "North Beach",

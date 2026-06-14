@@ -32,6 +32,14 @@ _COMMON = {
     "before", "here", "there", "now", "your", "let", "take", "enjoy", "pause",
     "north", "south", "east", "west", "left", "right", "monday", "today",
     "paris", "parisian",
+    # ubiquitous sentence-starters + evocative prose/title words the traces showed
+    # the gate wrongly flagging as place names ("Just around the corner", titles
+    # like "The Quiet Canvas"). None are venues, so admitting them is safe.
+    "just", "main", "canvas", "serene", "golden", "thread", "serendipity",
+    "awaits", "loop", "tucked", "secret", "alcove", "heart", "memory", "story",
+    "stories", "forgotten", "damp", "concrete", "dusty", "afternoon", "sky",
+    "subway", "grid", "skyscrapers", "skyscraper", "serenity", "canvas", "echoes",
+    "whisper", "whispers", "glow", "shimmer", "quietude",
     # template/narration sentence-starters and connective words
     "why", "spending", "every", "threads", "discoveries", "real", "spot",
     "nothing", "invented", "breath", "hush", "shelves", "stalls", "something",
@@ -193,8 +201,13 @@ def verify_grounded(text: str, pois, start_label="", end_label="",
     """
     allowed_norm = [_norm(a)
                     for a in allowed_names(pois, start_label, end_label, extra_allowed)]
+    # Markdown heading lines ('#', '##', '###') are evocative TITLES / section
+    # labels, not "go here" instructions — the model's own title ("### The Quiet
+    # Canvas") was tripping the gate. Exempt heading lines from grounding; the prose
+    # body, where actual stops are named, is still fully checked.
+    body = "\n".join(ln for ln in text.splitlines() if not ln.lstrip().startswith("#"))
     offenders = [
-        mention for mention in extract_mentions(text)
+        mention for mention in extract_mentions(body)
         if not _is_grounded_mention(mention, allowed_norm)
     ]
     return (len(offenders) == 0, offenders)
