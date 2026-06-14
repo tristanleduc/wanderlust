@@ -107,6 +107,18 @@ _COMMON = {
     "remember", "consider", "watch", "listen", "recall", "observe", "sense",
     "perhaps", "maybe", "indeed", "history", "culture", "tradition", "legend",
     "myth", "legends", "myths", "everywhere", "somewhere", "anywhere",
+    "even", "still", "yet", "once", "twice", "often", "always", "never",
+    "sometimes", "nowhere", "elsewhere", "wherever", "whenever", "however",
+    "instead", "throughout", "tonight", "yesterday", "tomorrow", "everyday",
+    # nationality / language / cultural-style adjectives — capitalized but never
+    # standalone venues (a guide writes "a Flemish façade", "Moorish arches").
+    "flemish", "dutch", "belgian", "swiss", "austrian", "portuguese", "greek",
+    "turkish", "russian", "polish", "hungarian", "czech", "scandinavian",
+    "nordic", "norse", "celtic", "gaelic", "moorish", "byzantine", "ottoman",
+    "persian", "arab", "arabic", "hebrew", "jewish", "korean", "thai",
+    "vietnamese", "mexican", "brazilian", "cuban", "african", "asian", "slavic",
+    "baltic", "iberian", "andalusian", "tuscan", "sicilian", "bavarian",
+    "prussian", "mughal", "colonial", "etruscan", "mediterranean",
 }
 
 _TOKEN_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ0-9'’.\-]*")
